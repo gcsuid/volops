@@ -1,0 +1,127 @@
+﻿<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Site Manager Portal</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+  <main class="container">
+    <div class="topbar">
+      <div>
+        <h1>Site Manager Portal</h1>
+        <p class="page-subtitle">Login/signup, then register drives under organization code.</p>
+      </div>
+      <a class="link" href="/">Back to Home</a>
+    </div>
+
+    <div id="authWrapper">
+      <section class="card">
+        <div class="section-head">
+          <h2>Site Manager Onboarding</h2>
+          <span class="stat-chip" id="managerLoginBadge">Not Logged In</span>
+        </div>
+        <div class="grid">
+          <div>
+            <label>Are you registered?</label>
+            <select id="managerMode">
+              <option value="login">Yes, Login</option>
+              <option value="signup">No, Sign Up</option>
+            </select>
+
+            <div id="managerLoginFields">
+              <label>Company Email</label>
+              <input id="managerLoginEmail" type="email" placeholder="manager@company.org" />
+              <label>Unique Manager ID</label>
+              <input id="managerLoginUniqueId" placeholder="MGR-123456" />
+              <div class="actions"><button id="managerLoginBtn" type="button">Login</button></div>
+            </div>
+
+            <div id="managerSignupFields" style="display:none;">
+              <label>Email ID</label>
+              <input id="managerSignupEmail" type="email" placeholder="manager@company.org" />
+              <label>Name</label>
+              <input id="managerSignupName" placeholder="Riya Singh" />
+              <label>Company ID</label>
+              <input id="managerSignupCompanyId" placeholder="CMP-123456" />
+              <div class="actions"><button id="managerSignupBtn" type="button">Sign Up</button></div>
+            </div>
+
+            <div class="actions"><button id="managerLogoutBtn" type="button" class="btn-secondary">Logout</button></div>
+          </div>
+
+          <div>
+            <h3>Your Manager Credentials</h3>
+            <p class="small">After signup, save this unique manager ID for future logins.</p>
+            <p class="small"><strong>Manager ID:</strong> <span id="managerUniqueIdDisplay">-</span></p>
+            <p class="small" id="managerMeta"></p>
+          </div>
+        </div>
+    </div>
+    </section>
+    </div> <!-- end authWrapper -->
+
+    <div id="dashboardWrapper" style="display:none;">
+      <section class="card">
+        <div class="section-head">
+          <h2>Register Drive</h2>
+          <span class="stat-chip">Needs organization code</span>
+        </div>
+        <div class="grid">
+          <div>
+            <label>Manager Name</label>
+            <input id="managerName" placeholder="Riya Singh" />
+            <label>Organization Name</label>
+            <input id="managerOrgName" placeholder="Helping Hands Foundation" />
+            <label>Organization Code</label>
+            <input id="managerOrgCode" placeholder="10-digit org code" />
+            <label>Drive Location / Area</label>
+            <input id="driveLocation" placeholder="Sector 7 Community Hall" />
+            <label>Start Time</label>
+            <input id="driveStart" type="datetime-local" />
+            <label>End Time</label>
+            <input id="driveEnd" type="datetime-local" />
+            <div class="actions">
+              <button id="createDriveBtn" type="button">Create Drive</button>
+              <button id="loadDrivesBtn" type="button" class="btn-secondary">Load My Drives</button>
+            </div>
+          </div>
+
+          <div>
+            <h3>Drive Check-In Link</h3>
+            <p class="small" id="driveLinkText">Create a drive to generate check-in QR/link.</p>
+            <div id="driveQr" class="qr-box">Drive QR appears here</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Registered Drives</h2>
+          <span class="stat-chip">Delete wrong entries to unlock slot</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Manager</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="drivesBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div> <!-- end dashboardWrapper -->
+  </main>
+  <script src="/sitemanager.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,141 @@
+﻿<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Volunteer Check-In</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+
+<body>
+  <main class="container">
+    <div class="topbar">
+      <div>
+        <h1>Volunteer Check-In</h1>
+        <p class="page-subtitle">Login/signup once, then scan drive/event and check in.</p>
+      </div>
+      <a class="link" href="/">Back to Home</a>
+    </div>
+
+    <div id="authWrapper">
+      <section class="card">
+        <div class="section-head">
+          <h2>Step 0: Volunteer Onboarding</h2>
+          <span class="stat-chip" id="loginBadge">Not Logged In</span>
+        </div>
+        <div class="grid">
+          <div>
+            <label>Are you registered?</label>
+            <div class="actions">
+              <button id="volunteerRegisteredYesBtn" type="button">Yes</button>
+              <button id="volunteerRegisteredNoBtn" type="button" class="btn-secondary">No</button>
+            </div>
+
+            <div id="volunteerLoginFields">
+              <label>Email</label>
+              <input id="loginEmail" type="email" placeholder="you@example.com" />
+              <label>Password</label>
+              <input id="loginPassword" type="password" placeholder="Enter password" />
+              <div class="actions">
+                <button id="volunteerLoginBtn" type="button">Login</button>
+              </div>
+            </div>
+
+            <div id="volunteerSignupFields" style="display:none;">
+              <label>Name</label>
+              <input id="signupName" placeholder="Your full name" />
+              <label>Age</label>
+              <input id="signupAge" type="number" min="1" max="120" />
+              <label>Gender</label>
+              <select id="signupGender">
+                <option value="">Select</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Non-Binary">Non-Binary</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+              <label>Email</label>
+              <input id="signupEmail" type="email" placeholder="you@example.com" />
+              <label>Password</label>
+              <input id="signupPassword" type="password" placeholder="Create password" />
+              <div class="actions">
+                <button id="volunteerSignupBtn" type="button">Sign Up</button>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="logoutBtn" type="button" class="btn-secondary">Logout</button>
+            </div>
+          </div>
+
+          <div>
+            <label>Name</label>
+            <input id="name" placeholder="Auto-filled" />
+            <label>Email</label>
+            <input id="email" type="email" placeholder="Auto-filled" />
+            <label>Age</label>
+            <input id="age" type="number" min="1" max="120" placeholder="Auto-filled" />
+            <label>Gender</label>
+            <input id="gender" placeholder="Auto-filled" />
+            <label>Activity</label>
+            <input id="activity" placeholder="Food distribution / tutoring / cleanup" />
+          </div>
+        </div>
+      </section>
+    </div> <!-- end authWrapper -->
+
+    <div id="dashboardWrapper" style="display:none;">
+      <div class="grid">
+        <section class="card">
+          <div class="section-head">
+            <h2>Step 1: Identify Event / Drive</h2>
+            <span class="stat-chip">QR + Token fallback</span>
+          </div>
+          <div id="reader"></div>
+          <label>Paste event/drive token manually</label>
+          <input id="tokenInput" placeholder="Paste token from organizer" />
+          <label>Organization Code (Required for drive check-in)</label>
+          <input id="orgCodeInput" placeholder="10-digit organization code" />
+          <div class="actions">
+            <button id="loadEventBtn" type="button">Load Event/Drive</button>
+          </div>
+          <div id="eventInfo" class="small spacer-top"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h2>Step 2: Complete Check-In</h2>
+            <span class="stat-chip">Photo + Timer</span>
+          </div>
+
+          <label>Photo Capture</label>
+          <video id="camera" autoplay playsinline></video>
+          <canvas id="snapshotCanvas" style="display:none;"></canvas>
+          <div class="actions">
+            <button id="startCamBtn" type="button">Enable Camera</button>
+            <button id="captureBtn" type="button" class="btn-secondary">Capture Photo</button>
+          </div>
+          <img id="photoPreview" style="max-width:180px;display:none;" />
+
+          <div class="actions">
+            <button id="checkInBtn" type="button">Check In</button>
+            <button id="checkOutBtn" type="button" class="btn-secondary">Check Out</button>
+          </div>
+
+          <div id="status"></div>
+
+          <div class="timer-box">
+            <span>Session Timer</span>
+            <strong id="timer">00:00:00</strong>
+          </div>
+        </section>
+      </div>
+    </div> <!-- end dashboardWrapper -->
+  </main>
+
+  <script src="/volunteer.js"></script>
+</body>
+
+</html>

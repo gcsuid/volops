@@ -1,0 +1,103 @@
+﻿<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organization Portal</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <main class="container">
+    <div class="topbar">
+      <div>
+        <h1>Organization Portal</h1>
+        <p class="page-subtitle">Login or register, then share company code and org code with teams.</p>
+      </div>
+      <a class="link" href="/">Back to Home</a>
+    </div>
+
+    <div id="authWrapper">
+      <section class="card">
+        <div class="section-head">
+          <h2>Organization Onboarding</h2>
+          <span class="stat-chip" id="orgLoginBadge">Not Logged In</span>
+        </div>
+        <div class="grid">
+          <div>
+            <label>Are you registered?</label>
+            <select id="orgMode">
+              <option value="login">Yes, Login</option>
+              <option value="signup">No, Register</option>
+            </select>
+
+            <div id="orgLoginFields">
+              <label>Company ID</label>
+              <input id="orgLoginCompanyId" placeholder="CMP-123456" />
+              <label>Password</label>
+              <input id="orgLoginPassword" type="password" placeholder="Password" />
+              <div class="actions"><button id="orgLoginBtn" type="button">Login</button></div>
+            </div>
+
+            <div id="orgSignupFields" style="display:none;">
+              <label>Company Name</label>
+              <input id="orgSignupName" placeholder="Helping Hands Foundation" />
+              <label>Location</label>
+              <input id="orgSignupLocation" placeholder="Bangalore" />
+              <label>Company Contact Email</label>
+              <input id="orgSignupEmail" type="email" placeholder="contact@company.org" />
+              <label>Password</label>
+              <input id="orgSignupPassword" type="password" placeholder="Create password" />
+              <div class="actions"><button id="orgSignupBtn" type="button">Register</button></div>
+            </div>
+
+            <div class="actions"><button id="orgLogoutBtn" type="button" class="btn-secondary">Logout</button></div>
+          </div>
+
+          <div>
+            <h3>Assigned Credentials</h3>
+            <p class="small">Share company ID and org code with site managers/volunteers as needed.</p>
+            <p class="small"><strong>Company ID:</strong> <span id="orgCompanyIdDisplay">-</span></p>
+            <p class="small"><strong>Organization Code:</strong> <span id="orgCodeDisplay">-</span></p>
+            <p class="small" id="orgMeta"></p>
+          </div>
+        </div>
+    </div>
+    </div>
+    </section>
+    </div> <!-- end authWrapper -->
+
+    <div id="dashboardWrapper" style="display:none;">
+      <section class="card">
+        <div class="section-head">
+          <h2>Organization Sheet (Day)</h2>
+          <span class="stat-chip">Volunteer entries reflected by org code</span>
+        </div>
+        <div class="inline">
+          <input id="sheetDate" type="date" />
+          <button id="orgLoadByDateBtn" type="button">Load Date</button>
+        </div>
+        <div class="table-wrap spacer-top">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Drive Location</th>
+                <th>Time In</th>
+                <th>Time Out</th>
+                <th>Hours</th>
+              </tr>
+            </thead>
+            <tbody id="orgSheetBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div> <!-- end dashboardWrapper -->
+  </main>
+  <script src="/organization.js"></script>
+</body>
+
+</html>

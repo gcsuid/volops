@@ -1,0 +1,64 @@
+﻿<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VolOps Login</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script>
+    if (localStorage.getItem('volopsVolunteerAuthToken')) window.location.href = '/volunteer.html';
+    else if (localStorage.getItem('volopsOrgAuthToken')) window.location.href = '/organization.html';
+    else if (localStorage.getItem('volopsSiteManagerAuthToken')) window.location.href = '/sitemanager.html';
+  </script>
+</head>
+
+<body>
+  <main class="container">
+    <div class="topbar">
+      <div>
+        <h1>Login / Register</h1>
+        <p class="page-subtitle">Choose your role to continue to the correct onboarding flow.</p>
+      </div>
+      <a class="link" href="/">Back to Landing</a>
+    </div>
+
+    <section class="grid organic-grid">
+      <article class="organic-card">
+        <div class="abstract-figure vol-figure">
+          <div class="orb"></div>
+          <div class="orb-ring"></div>
+        </div>
+        <h2>Volunteer</h2>
+        <p class="small">Login or register as a volunteer, then check in for drives/events.</p>
+        <div class="actions">
+          <a class="btn" href="/volunteer.html">Continue as Volunteer</a>
+        </div>
+      </article>
+
+      <article class="organic-card">
+        <div class="abstract-figure org-figure">
+          <div class="hexagon"></div>
+        </div>
+        <h2>Organization</h2>
+        <p class="small">Login or register your organization, manage company/org codes, and view sheets.</p>
+        <div class="actions">
+          <a class="btn" href="/organization.html">Continue as Organization</a>
+        </div>
+      </article>
+
+      <article class="organic-card">
+        <div class="abstract-figure site-figure">
+          <div class="pyramid"></div>
+        </div>
+        <h2>Site Manager</h2>
+        <p class="small">Login or register as a site manager, then create and manage drives.</p>
+        <div class="actions">
+          <a class="btn" href="/sitemanager.html">Continue as Site Manager</a>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+
+</html>

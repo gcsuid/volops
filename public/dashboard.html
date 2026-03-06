@@ -1,0 +1,157 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organization Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <div class="topbar">
+      <div>
+        <h1>Organization Dashboard</h1>
+        <p class="page-subtitle">Manage sites and events, monitor active volunteers, and export reporting sheets.</p>
+      </div>
+      <a class="link" href="/">Back to Home</a>
+    </div>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Setup</h2>
+        <span class="stat-chip">Organization + Site Configuration</span>
+      </div>
+      <div class="grid">
+        <div>
+          <h3>Create Organization</h3>
+          <label>Organization Name</label>
+          <input id="orgName" placeholder="Community Action Foundation" />
+          <div class="actions">
+            <button id="addOrgBtn" type="button">Add Organization</button>
+          </div>
+        </div>
+        <div>
+          <h3>Create Site</h3>
+          <label>Organization</label>
+          <select id="siteOrgId"></select>
+          <label>Site Name</label>
+          <input id="siteName" placeholder="Westside Shelter" />
+          <label>Address</label>
+          <input id="siteAddress" placeholder="123 Oak Street" />
+          <label>Latitude</label>
+          <input id="siteLat" type="number" step="any" placeholder="40.7128" />
+          <label>Longitude</label>
+          <input id="siteLng" type="number" step="any" placeholder="-74.0060" />
+          <label>Geofence Radius (meters)</label>
+          <input id="siteRadius" type="number" value="150" />
+          <div class="actions">
+            <button id="addSiteBtn" type="button">Add Site</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Event QR Generator</h2>
+        <span class="stat-chip">Unique QR per event</span>
+      </div>
+      <div class="grid">
+        <div>
+          <label>Site</label>
+          <select id="eventSiteId"></select>
+          <label>Event Name</label>
+          <input id="eventName" placeholder="Saturday Meal Drive" />
+          <label>Activity</label>
+          <input id="eventActivity" placeholder="Meal Service" />
+          <label>Start Time</label>
+          <input id="eventStart" type="datetime-local" />
+          <div class="actions">
+            <button id="createEventBtn" type="button">Generate Event QR</button>
+          </div>
+          <p id="eventLink" class="small"></p>
+        </div>
+        <div>
+          <div id="qrContainer" class="qr-box">Generated QR appears here</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Live Active Volunteers</h2>
+        <span class="stat-chip">Auto-refresh every 15 seconds</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Organization</th><th>Site</th><th>Activity</th><th>Time In</th><th>Geofence</th></tr>
+          </thead>
+          <tbody id="activeBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Reports</h2>
+        <span class="stat-chip">Site-wise and activity-wise analytics</span>
+      </div>
+      <div class="inline">
+        <select id="reportSiteFilter"></select>
+        <input id="reportActivityFilter" placeholder="Activity exact match" />
+        <button id="loadReportsBtn" type="button">Load Reports</button>
+        <a class="btn" href="/api/reports/export.csv">Download CSV</a>
+        <a class="btn btn-secondary" href="/api/reports/export.xlsx">Download Excel</a>
+      </div>
+
+      <h3 class="spacer-top">Detailed Sheet</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Place</th><th>Time In</th><th>Time Out</th><th>Hours Devoted</th></tr>
+          </thead>
+          <tbody id="reportBody"></tbody>
+        </table>
+      </div>
+
+      <div class="grid spacer-top">
+        <div>
+          <h3>Site-Wise Summary</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Site</th><th>Volunteers</th><th>Total Hours</th></tr></thead>
+              <tbody id="siteSummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Activity-Wise Summary</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Activity</th><th>Volunteers</th><th>Total Hours</th></tr></thead>
+              <tbody id="activitySummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Recent Geofence Alerts</h2>
+        <span class="stat-chip">Volunteers outside allowed radius</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Volunteer</th><th>Distance (m)</th><th>Time</th></tr></thead>
+          <tbody id="alertBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>
