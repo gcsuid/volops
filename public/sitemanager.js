@@ -18,6 +18,10 @@ const managerNameEl = document.getElementById('managerName');
 const managerOrgNameEl = document.getElementById('managerOrgName');
 const managerOrgCodeEl = document.getElementById('managerOrgCode');
 const driveLocationEl = document.getElementById('driveLocation');
+
+function escapeHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 const driveStartEl = document.getElementById('driveStart');
 const driveEndEl = document.getElementById('driveEnd');
 
@@ -156,9 +160,9 @@ async function createDrive() {
     return;
   }
   localStorage.setItem(MANAGER_ORG_CODE_KEY, managerOrgCodeEl.value.trim());
-  driveLinkTextEl.innerHTML = `Drive registered. Share check-in URL:<br /><a href="${data.checkinUrl}" target="_blank">${data.checkinUrl}</a>`;
+  driveLinkTextEl.innerHTML = `Drive registered. Share check-in URL:<br /><a href="${escapeHtml(data.checkinUrl)}" target="_blank">${escapeHtml(data.checkinUrl)}</a>`;
   if (driveCodeTextEl && data.drive.driveCode) {
-    driveCodeTextEl.innerHTML = `<strong>Drive Code:</strong> <span style="font-size:1.3em;font-weight:700;letter-spacing:2px;color:#0f766e">${data.drive.driveCode}</span> <span class="small">(volunteers can also enter this code manually)</span>`;
+    driveCodeTextEl.innerHTML = `<strong>Drive Code:</strong> <span style="font-size:1.3em;font-weight:700;letter-spacing:2px;color:#0f766e">${escapeHtml(data.drive.driveCode)}</span> <span class="small">(volunteers can also enter this code manually)</span>`;
   }
   driveQrEl.innerHTML = '';
   new QRCode(driveQrEl, { text: data.checkinUrl, width: 180, height: 180 });
@@ -188,7 +192,7 @@ async function loadDrives() {
   const r = await authedFetch(`/api/site-manager/drives?orgCode=${encodeURIComponent(orgCode)}`);
   const data = await r.json();
   if (!r.ok) {
-    drivesBodyEl.innerHTML = `<tr><td colspan="8">${data.error || 'Failed to load drives'}</td></tr>`;
+    drivesBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(data.error) || 'Failed to load drives'}</td></tr>`;
     return;
   }
   if (!data.drives.length) {
@@ -197,16 +201,16 @@ async function loadDrives() {
   }
   drivesBodyEl.innerHTML = data.drives.map((d) => `
     <tr>
-      <td><strong>${d.driveCode || '-'}</strong></td>
-      <td>${d.location}</td>
+      <td><strong>${escapeHtml(d.driveCode || '-')}</strong></td>
+      <td>${escapeHtml(d.location)}</td>
       <td>${new Date(d.startsAt).toLocaleString()}</td>
       <td>${new Date(d.endsAt).toLocaleString()}</td>
-      <td>${d.managerName}</td>
+      <td>${escapeHtml(d.managerName)}</td>
       <td>${driveStatus(d)}</td>
       <td>${d.volunteerCount ?? 0}</td>
       <td>
-        ${!d.completedAt ? `<button data-id="${d.id}" class="btn-secondary complete-drive" style="margin-bottom:4px">✓ Complete</button>` : ''}
-        <button data-id="${d.id}" class="btn-secondary delete-drive">Delete</button>
+        ${!d.completedAt ? `<button data-id="${escapeHtml(d.id)}" class="btn-secondary complete-drive" style="margin-bottom:4px">✓ Complete</button>` : ''}
+        <button data-id="${escapeHtml(d.id)}" class="btn-secondary delete-drive">Delete</button>
       </td>
     </tr>
   `).join('');

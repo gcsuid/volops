@@ -13,6 +13,10 @@ const volIdBadgeEl = document.getElementById('volIdBadge');
 
 const registeredYesBtn = document.getElementById('volunteerRegisteredYesBtn');
 const registeredNoBtn = document.getElementById('volunteerRegisteredNoBtn');
+
+function escapeHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 const loginBadgeEl = document.getElementById('loginBadge');
 const loginFieldsEl = document.getElementById('volunteerLoginFields');
 const signupFieldsEl = document.getElementById('volunteerSignupFields');
@@ -56,7 +60,7 @@ let currentVolunteer = null;
 let volunteerAuthToken = localStorage.getItem(VOLUNTEER_TOKEN_KEY);
 
 function setStatus(message, level = 'ok') {
-  statusBox.innerHTML = `<div class="status ${level}">${message}</div>`;
+  statusBox.innerHTML = `<div class="status ${escapeHtml(level)}">${escapeHtml(message)}</div>`;
 }
 
 function setLoginBadge(text, ok = false) {
@@ -173,9 +177,9 @@ async function loadEvent(token) {
       tokenInput.value = codeData.drive.token;
       const completedNote = codeData.drive.completedAt ? '<br /><span style="color:#e11d48">⚠ Drive completed.</span>' : '';
       eventInfo.innerHTML = `
-        <strong>${codeData.organization.name}</strong><br />
-        Drive Manager: ${codeData.drive.managerName}<br />
-        Location: ${codeData.drive.location}<br />
+        <strong>${escapeHtml(codeData.organization.name)}</strong><br />
+        Drive Manager: ${escapeHtml(codeData.drive.managerName)}<br />
+        Location: ${escapeHtml(codeData.drive.location)}<br />
         Start: ${new Date(codeData.drive.startsAt).toLocaleString()}<br />
         End: ${new Date(codeData.drive.endsAt).toLocaleString()}${completedNote}<br />
         Enter organization code for check-in.
@@ -190,9 +194,9 @@ async function loadEvent(token) {
     activeDrive = driveData;
     const completedNote = driveData.drive.completedAt ? '<br /><span style="color:#e11d48">⚠ Drive completed by site manager.</span>' : '';
     eventInfo.innerHTML = `
-      <strong>${driveData.organization.name}</strong><br />
-      Drive Manager: ${driveData.drive.managerName}<br />
-      Location: ${driveData.drive.location}<br />
+      <strong>${escapeHtml(driveData.organization.name)}</strong><br />
+      Drive Manager: ${escapeHtml(driveData.drive.managerName)}<br />
+      Location: ${escapeHtml(driveData.drive.location)}<br />
       Start: ${new Date(driveData.drive.startsAt).toLocaleString()}<br />
       End: ${new Date(driveData.drive.endsAt).toLocaleString()}${completedNote}<br />
       Enter organization code for check-in.
@@ -206,10 +210,10 @@ async function loadEvent(token) {
   activeEvent = data;
   activityEl.value = data.event.activity || activityEl.value;
   eventInfo.innerHTML = `
-    <strong>${data.organization.name}</strong><br />
-    Event: ${data.event.name}<br />
-    Location: ${data.site.name}, ${data.site.address}<br />
-    Geofence Radius: ${data.site.geofenceRadiusMeters}m
+    <strong>${escapeHtml(data.organization.name)}</strong><br />
+    Event: ${escapeHtml(data.event.name)}<br />
+    Location: ${escapeHtml(data.site.name)}, ${escapeHtml(data.site.address)}<br />
+    Geofence Radius: ${escapeHtml(String(data.site.geofenceRadiusMeters))}m
   `;
 }
 

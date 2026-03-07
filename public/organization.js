@@ -19,6 +19,10 @@ const orgCompanyIdDisplayEl = document.getElementById('orgCompanyIdDisplay');
 const orgCodeDisplayEl = document.getElementById('orgCodeDisplay');
 const orgMetaEl = document.getElementById('orgMeta');
 
+function escapeHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const sheetDateEl = document.getElementById('sheetDate');
 const orgSheetBodyEl = document.getElementById('orgSheetBody');
 const orgDrivesBodyEl = document.getElementById('orgDrivesBody');
@@ -96,8 +100,8 @@ async function loadDrives() {
   }
   orgDrivesBodyEl.innerHTML = data.drives.map((d) => `
     <tr>
-      <td>${d.location}<br /><span class="small" style="color:#6b7280">${d.driveCode || ''}</span></td>
-      <td>${d.managerName}</td>
+      <td>${escapeHtml(d.location)}<br /><span class="small" style="color:#6b7280">${escapeHtml(d.driveCode || '')}</span></td>
+      <td>${escapeHtml(d.managerName)}</td>
       <td>${new Date(d.startsAt).toLocaleString()}</td>
       <td>${new Date(d.endsAt).toLocaleString()}</td>
       <td>${driveStatusLabel(d)}</td>
@@ -112,7 +116,7 @@ async function loadSheet() {
   const r = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/sheet?date=${encodeURIComponent(date)}`);
   const data = await r.json();
   if (!r.ok) {
-    orgSheetBodyEl.innerHTML = `<tr><td colspan="8">${data.error || 'Failed to load sheet'}</td></tr>`;
+    orgSheetBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(data.error) || 'Failed to load sheet'}</td></tr>`;
     return;
   }
   if (!data.rows.length) {
@@ -121,11 +125,11 @@ async function loadSheet() {
   }
   orgSheetBodyEl.innerHTML = data.rows.map((r0) => `
     <tr>
-      <td>${r0.name}</td><td>${r0.age}</td><td>${r0.gender}</td><td>${r0.driveLocation}</td>
+      <td>${escapeHtml(r0.name)}</td><td>${escapeHtml(String(r0.age))}</td><td>${escapeHtml(r0.gender)}</td><td>${escapeHtml(r0.driveLocation)}</td>
       <td>${new Date(r0.timeIn).toLocaleString()}</td>
       <td>${r0.timeOut ? new Date(r0.timeOut).toLocaleString() : '<em>Active</em>'}</td>
-      <td>${r0.hoursDevoted}</td>
-      <td><button class="btn-secondary delete-session" data-id="${r0.sessionId}" style="font-size:0.8em">Remove</button></td>
+      <td>${escapeHtml(r0.hoursDevoted)}</td>
+      <td><button class="btn-secondary delete-session" data-id="${escapeHtml(r0.sessionId)}" style="font-size:0.8em">Remove</button></td>
     </tr>
   `).join('');
 

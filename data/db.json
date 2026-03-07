@@ -432,6 +432,20 @@
       "gender": "Female",
       "createdAt": "2026-03-07T12:27:08.393Z",
       "updatedAt": "2026-03-07T12:27:08.393Z"
+    },
+    {
+      "id": "5f8248ba-d38d-4e9c-a911-c394572441e4",
+      "volId": "VOL-188065",
+      "identityKey": "email:final-test-xz@example.com",
+      "loginMethod": "email",
+      "email": "final-test-xz@example.com",
+      "passwordHash": "bad0325c0dbfb2c66bb132aa58d3a29791f05f7cad1f051ee6782468303b9a40",
+      "phone": "",
+      "name": "Final Test",
+      "age": 25,
+      "gender": "Female",
+      "createdAt": "2026-03-07T12:34:18.063Z",
+      "updatedAt": "2026-03-07T12:34:18.063Z"
     }
   ],
   "drives": [
@@ -586,6 +600,21 @@
       "driveCode": "P58QPE",
       "completedAt": null,
       "createdAt": "2026-03-07T12:28:14.655Z",
+      "deletedAt": null
+    },
+    {
+      "id": "5faee64f-8073-4442-9993-a91f4005fbac",
+      "managerName": "Demo Manager",
+      "orgId": "org-1",
+      "orgName": "Community Care Network",
+      "orgCodeHash": "48f5f9a293954fa6ec075f6af84fcedec64486ee655d07a0f2a2f0a487d3dfa7",
+      "location": "Final Test XZ",
+      "startsAt": "2026-05-01T10:00:00.000Z",
+      "endsAt": "2026-05-01T12:00:00.000Z",
+      "token": "d8e99842-ae06-4e00-ad41-f8c035ee0463",
+      "driveCode": "DC3TDR",
+      "completedAt": null,
+      "createdAt": "2026-03-07T12:34:18.104Z",
       "deletedAt": null
     }
   ],
