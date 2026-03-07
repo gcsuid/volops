@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "volunteer-management-site",
   "version": "1.0.0",
   "description": "Volunteer management website with QR check-in, geofence tracking, dashboard and exports",
@@ -6,5 +6,8 @@
   "scripts": {
     "start": "node server.js"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
 }
