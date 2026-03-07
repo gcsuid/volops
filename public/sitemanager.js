@@ -18,10 +18,15 @@ const managerNameEl = document.getElementById('managerName');
 const managerOrgNameEl = document.getElementById('managerOrgName');
 const managerOrgCodeEl = document.getElementById('managerOrgCode');
 const driveLocationEl = document.getElementById('driveLocation');
+
+function escapeHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 const driveStartEl = document.getElementById('driveStart');
 const driveEndEl = document.getElementById('driveEnd');
 
 const driveLinkTextEl = document.getElementById('driveLinkText');
+const driveCodeTextEl = document.getElementById('driveCodeText');
 const driveQrEl = document.getElementById('driveQr');
 const drivesBodyEl = document.getElementById('drivesBody');
 const managerUniqueIdDisplayEl = document.getElementById('managerUniqueIdDisplay');
@@ -151,23 +156,35 @@ async function createDrive() {
   const data = await r.json();
   if (!r.ok) {
     driveLinkTextEl.textContent = data.error || 'Failed to create drive';
+    if (driveCodeTextEl) driveCodeTextEl.textContent = '';
     return;
   }
   localStorage.setItem(MANAGER_ORG_CODE_KEY, managerOrgCodeEl.value.trim());
-  driveLinkTextEl.innerHTML = `Drive registered. Share check-in URL:<br /><a href="${data.checkinUrl}" target="_blank">${data.checkinUrl}</a>`;
+  driveLinkTextEl.innerHTML = `Drive registered. Share check-in URL:<br /><a href="${escapeHtml(data.checkinUrl)}" target="_blank">${escapeHtml(data.checkinUrl)}</a>`;
+  if (driveCodeTextEl && data.drive.driveCode) {
+    driveCodeTextEl.innerHTML = `<strong>Drive Code:</strong> <span style="font-size:1.3em;font-weight:700;letter-spacing:2px;color:#0f766e">${escapeHtml(data.drive.driveCode)}</span> <span class="small">(volunteers can also enter this code manually)</span>`;
+  }
   driveQrEl.innerHTML = '';
   new QRCode(driveQrEl, { text: data.checkinUrl, width: 180, height: 180 });
   await loadDrives();
 }
 
+function driveStatus(d) {
+  if (d.completedAt) return '<span style="color:#059669">Completed</span>';
+  const now = Date.now();
+  if (now < new Date(d.startsAt).getTime()) return '<span style="color:#d97706">Upcoming</span>';
+  if (now > new Date(d.endsAt).getTime()) return '<span style="color:#6b7280">Ended</span>';
+  return '<span style="color:#2563eb">Active</span>';
+}
+
 async function loadDrives() {
   if (!managerAuthToken) {
-    drivesBodyEl.innerHTML = '<tr><td colspan="5">Login as site manager first.</td></tr>';
+    drivesBodyEl.innerHTML = '<tr><td colspan="8">Login as site manager first.</td></tr>';
     return;
   }
   const orgCode = managerOrgCodeEl.value.trim() || localStorage.getItem(MANAGER_ORG_CODE_KEY) || '';
   if (!orgCode) {
-    drivesBodyEl.innerHTML = '<tr><td colspan="5">Enter organization code to load drives.</td></tr>';
+    drivesBodyEl.innerHTML = '<tr><td colspan="8">Enter organization code to load drives.</td></tr>';
     return;
   }
   managerOrgCodeEl.value = orgCode;
@@ -175,20 +192,26 @@ async function loadDrives() {
   const r = await authedFetch(`/api/site-manager/drives?orgCode=${encodeURIComponent(orgCode)}`);
   const data = await r.json();
   if (!r.ok) {
-    drivesBodyEl.innerHTML = `<tr><td colspan="5">${data.error || 'Failed to load drives'}</td></tr>`;
+    drivesBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(data.error) || 'Failed to load drives'}</td></tr>`;
     return;
   }
   if (!data.drives.length) {
-    drivesBodyEl.innerHTML = '<tr><td colspan="5">No drives registered.</td></tr>';
+    drivesBodyEl.innerHTML = '<tr><td colspan="8">No drives registered.</td></tr>';
     return;
   }
   drivesBodyEl.innerHTML = data.drives.map((d) => `
     <tr>
-      <td>${d.location}</td>
+      <td><strong>${escapeHtml(d.driveCode || '-')}</strong></td>
+      <td>${escapeHtml(d.location)}</td>
       <td>${new Date(d.startsAt).toLocaleString()}</td>
       <td>${new Date(d.endsAt).toLocaleString()}</td>
-      <td>${d.managerName}</td>
-      <td><button data-id="${d.id}" class="btn-secondary delete-drive">Delete</button></td>
+      <td>${escapeHtml(d.managerName)}</td>
+      <td>${driveStatus(d)}</td>
+      <td>${d.volunteerCount ?? 0}</td>
+      <td>
+        ${!d.completedAt ? `<button data-id="${escapeHtml(d.id)}" class="btn-secondary complete-drive" style="margin-bottom:4px">✓ Complete</button>` : ''}
+        <button data-id="${escapeHtml(d.id)}" class="btn-secondary delete-drive">Delete</button>
+      </td>
     </tr>
   `).join('');
 
@@ -196,6 +219,16 @@ async function loadDrives() {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       await authedFetch(`/api/site-manager/drives/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await loadDrives();
+    });
+  });
+
+  document.querySelectorAll('.complete-drive').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const r2 = await authedFetch(`/api/site-manager/drives/${encodeURIComponent(id)}/complete`, { method: 'POST' });
+      const d2 = await r2.json();
+      if (!r2.ok) { alert(d2.error || 'Failed to complete drive'); return; }
       await loadDrives();
     });
   });

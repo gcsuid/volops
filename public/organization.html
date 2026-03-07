@@ -27,10 +27,10 @@
         <div class="grid">
           <div>
             <label>Are you registered?</label>
-            <select id="orgMode">
-              <option value="login">Yes, Login</option>
-              <option value="signup">No, Register</option>
-            </select>
+            <div class="actions">
+              <button id="orgRegisteredYesBtn" type="button">Yes, Login</button>
+              <button id="orgRegisteredNoBtn" type="button" class="btn-secondary">No, Register</button>
+            </div>
 
             <div id="orgLoginFields">
               <label>Company ID</label>
@@ -77,6 +77,8 @@
         <div class="inline">
           <input id="sheetDate" type="date" />
           <button id="orgLoadByDateBtn" type="button">Load Date</button>
+          <button id="orgExportCsvBtn" type="button" class="btn-secondary">⬇ Export CSV</button>
+          <button id="orgExportXlsBtn" type="button" class="btn-secondary">⬇ Export Excel</button>
         </div>
         <div class="table-wrap spacer-top">
           <table>
@@ -89,9 +91,32 @@
                 <th>Time In</th>
                 <th>Time Out</th>
                 <th>Hours</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="orgSheetBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>All Drives Under Organisation</h2>
+          <span class="stat-chip">Active and completed drives</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Manager</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+                <th>Volunteers</th>
+              </tr>
+            </thead>
+            <tbody id="orgDrivesBody"></tbody>
           </table>
         </div>
       </section>
