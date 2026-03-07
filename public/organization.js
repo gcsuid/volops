@@ -21,6 +21,7 @@ const orgMetaEl = document.getElementById('orgMeta');
 
 const sheetDateEl = document.getElementById('sheetDate');
 const orgSheetBodyEl = document.getElementById('orgSheetBody');
+const orgDrivesBodyEl = document.getElementById('orgDrivesBody');
 
 const ORG_ID_KEY = 'volopsOrgId';
 const ORG_CODE_KEY = 'volopsOrgCode';
@@ -76,27 +77,68 @@ function applyOrgSession(org, orgCode, authToken) {
   dashboardWrapperEl.style.display = 'block';
 }
 
+function driveStatusLabel(d) {
+  if (d.completedAt) return '<span style="color:#059669">Completed</span>';
+  const now = Date.now();
+  if (now < new Date(d.startsAt).getTime()) return '<span style="color:#d97706">Upcoming</span>';
+  if (now > new Date(d.endsAt).getTime()) return '<span style="color:#6b7280">Ended</span>';
+  return '<span style="color:#2563eb">Active</span>';
+}
+
+async function loadDrives() {
+  if (!activeOrg?.id || !orgAuthToken) return;
+  const r = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/drives`);
+  const data = await r.json();
+  if (!r.ok || !orgDrivesBodyEl) return;
+  if (!data.drives || !data.drives.length) {
+    orgDrivesBodyEl.innerHTML = '<tr><td colspan="6">No drives registered under this organisation.</td></tr>';
+    return;
+  }
+  orgDrivesBodyEl.innerHTML = data.drives.map((d) => `
+    <tr>
+      <td>${d.location}<br /><span class="small" style="color:#6b7280">${d.driveCode || ''}</span></td>
+      <td>${d.managerName}</td>
+      <td>${new Date(d.startsAt).toLocaleString()}</td>
+      <td>${new Date(d.endsAt).toLocaleString()}</td>
+      <td>${driveStatusLabel(d)}</td>
+      <td>${d.volunteerCount ?? 0}</td>
+    </tr>
+  `).join('');
+}
+
 async function loadSheet() {
   if (!activeOrg?.id || !orgAuthToken) return;
   const date = sheetDateEl.value || formatDateForInput(new Date());
   const r = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/sheet?date=${encodeURIComponent(date)}`);
   const data = await r.json();
   if (!r.ok) {
-    orgSheetBodyEl.innerHTML = `<tr><td colspan="7">${data.error || 'Failed to load sheet'}</td></tr>`;
+    orgSheetBodyEl.innerHTML = `<tr><td colspan="8">${data.error || 'Failed to load sheet'}</td></tr>`;
     return;
   }
   if (!data.rows.length) {
-    orgSheetBodyEl.innerHTML = '<tr><td colspan="7">No volunteer entries for this date.</td></tr>';
+    orgSheetBodyEl.innerHTML = '<tr><td colspan="8">No volunteer entries for this date.</td></tr>';
     return;
   }
   orgSheetBodyEl.innerHTML = data.rows.map((r0) => `
     <tr>
       <td>${r0.name}</td><td>${r0.age}</td><td>${r0.gender}</td><td>${r0.driveLocation}</td>
       <td>${new Date(r0.timeIn).toLocaleString()}</td>
-      <td>${r0.timeOut ? new Date(r0.timeOut).toLocaleString() : ''}</td>
+      <td>${r0.timeOut ? new Date(r0.timeOut).toLocaleString() : '<em>Active</em>'}</td>
       <td>${r0.hoursDevoted}</td>
+      <td><button class="btn-secondary delete-session" data-id="${r0.sessionId}" style="font-size:0.8em">Remove</button></td>
     </tr>
   `).join('');
+
+  document.querySelectorAll('.delete-session').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remove this volunteer session? This cannot be undone.')) return;
+      const sid = btn.getAttribute('data-id');
+      const dr = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/sessions/${encodeURIComponent(sid)}`, { method: 'DELETE' });
+      const dd = await dr.json();
+      if (!dr.ok) { alert(dd.error || 'Failed to remove session'); return; }
+      await loadSheet();
+    });
+  });
 }
 
 document.getElementById('orgLoginBtn').addEventListener('click', async () => {
@@ -112,6 +154,7 @@ document.getElementById('orgLoginBtn').addEventListener('click', async () => {
   }
   applyOrgSession(data.organization, data.orgCode, data.authToken);
   await loadSheet();
+  await loadDrives();
 });
 
 document.getElementById('orgSignupBtn').addEventListener('click', async () => {
@@ -132,9 +175,36 @@ document.getElementById('orgSignupBtn').addEventListener('click', async () => {
   }
   applyOrgSession(data.organization, data.orgCode, data.authToken);
   await loadSheet();
+  await loadDrives();
 });
 
 document.getElementById('orgLoadByDateBtn').addEventListener('click', loadSheet);
+
+document.getElementById('orgExportCsvBtn').addEventListener('click', () => {
+  if (!orgAuthToken) return;
+  const a = document.createElement('a');
+  a.href = '/api/reports/export.csv';
+  a.setAttribute('download', '');
+  // Pass auth via query param workaround (fetch-based download with auth header)
+  authedFetch('/api/reports/export.csv').then((r) => r.blob()).then((blob) => {
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+});
+
+document.getElementById('orgExportXlsBtn').addEventListener('click', () => {
+  if (!orgAuthToken) return;
+  authedFetch('/api/reports/export.xlsx').then((r) => r.blob()).then((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `volunteer-report-${sheetDateEl.value || 'all'}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+});
 
 document.getElementById('orgLogoutBtn').addEventListener('click', () => {
   activeOrg = null;
@@ -147,6 +217,7 @@ document.getElementById('orgLogoutBtn').addEventListener('click', () => {
   orgCodeDisplayEl.textContent = '-';
   orgMetaEl.textContent = '';
   orgSheetBodyEl.innerHTML = '';
+  if (orgDrivesBodyEl) orgDrivesBodyEl.innerHTML = '';
   setBadge('Not Logged In', false);
 
   authWrapperEl.style.display = 'block';
@@ -169,6 +240,7 @@ orgRegisteredNoBtn.addEventListener('click', () => setMode('signup'));
     if (r.ok) {
       applyOrgSession({ ...data.organization, companyId }, orgCode, orgAuthToken);
       await loadSheet();
+      await loadDrives();
       return;
     }
   }

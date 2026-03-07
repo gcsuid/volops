@@ -71,6 +71,8 @@
           </div>
 
           <div>
+            <label>Your Vol-ID</label>
+            <div class="vol-id-badge" id="volIdBadge">-</div>
             <label>Name</label>
             <input id="name" placeholder="Auto-filled" />
             <label>Email</label>
@@ -87,6 +89,14 @@
     </div> <!-- end authWrapper -->
 
     <div id="dashboardWrapper" style="display:none;">
+      <div class="topbar" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 16px;margin-bottom:12px;align-items:center;">
+        <div>
+          <span id="dashVolName" style="font-weight:600;"></span>
+          <span class="small" style="margin-left:8px;">Your Vol-ID: </span>
+          <span id="dashVolId" class="vol-id-badge" style="display:inline-block;vertical-align:middle;"></span>
+        </div>
+        <button id="dashLogoutBtn" type="button" class="btn-secondary" style="font-size:0.82em">Logout</button>
+      </div>
       <div class="grid">
         <section class="card">
           <div class="section-head">
@@ -94,8 +104,8 @@
             <span class="stat-chip">QR + Token fallback</span>
           </div>
           <div id="reader"></div>
-          <label>Paste event/drive token manually</label>
-          <input id="tokenInput" placeholder="Paste token from organizer" />
+          <label>Paste event/drive token or enter 6-character drive code</label>
+          <input id="tokenInput" placeholder="Paste token or enter drive code (e.g. AB12CD)" />
           <label>Organization Code (Required for drive check-in)</label>
           <input id="orgCodeInput" placeholder="10-digit organization code" />
           <div class="actions">
@@ -110,17 +120,18 @@
             <span class="stat-chip">Photo + Timer</span>
           </div>
 
-          <label>Photo Capture</label>
+          <label>Photo Capture <span class="required-badge">Required</span></label>
           <video id="camera" autoplay playsinline></video>
           <canvas id="snapshotCanvas" style="display:none;"></canvas>
           <div class="actions">
             <button id="startCamBtn" type="button">Enable Camera</button>
-            <button id="captureBtn" type="button" class="btn-secondary">Capture Photo</button>
+            <button id="captureBtn" type="button" class="btn-secondary">Capture Selfie</button>
           </div>
           <img id="photoPreview" style="max-width:180px;display:none;" />
+          <div id="photoStatus" class="small spacer-top" style="color:#e11d48;">Selfie required before check-in.</div>
 
           <div class="actions">
-            <button id="checkInBtn" type="button">Check In</button>
+            <button id="checkInBtn" type="button" disabled title="Capture selfie first">Check In</button>
             <button id="checkOutBtn" type="button" class="btn-secondary">Check Out</button>
           </div>
 

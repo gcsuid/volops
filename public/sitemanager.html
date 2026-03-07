@@ -28,10 +28,10 @@
         <div class="grid">
           <div>
             <label>Are you registered?</label>
-            <select id="managerMode">
-              <option value="login">Yes, Login</option>
-              <option value="signup">No, Sign Up</option>
-            </select>
+            <div class="actions">
+              <button id="managerRegisteredYesBtn" type="button">Yes, Login</button>
+              <button id="managerRegisteredNoBtn" type="button" class="btn-secondary">No, Sign Up</button>
+            </div>
 
             <div id="managerLoginFields">
               <label>Company Email</label>
@@ -94,6 +94,7 @@
           <div>
             <h3>Drive Check-In Link</h3>
             <p class="small" id="driveLinkText">Create a drive to generate check-in QR/link.</p>
+            <p class="small" id="driveCodeText"></p>
             <div id="driveQr" class="qr-box">Drive QR appears here</div>
           </div>
         </div>
@@ -108,10 +109,13 @@
           <table>
             <thead>
               <tr>
+                <th>Drive Code</th>
                 <th>Location</th>
                 <th>Start</th>
                 <th>End</th>
                 <th>Manager</th>
+                <th>Status</th>
+                <th>Volunteers</th>
                 <th>Action</th>
               </tr>
             </thead>

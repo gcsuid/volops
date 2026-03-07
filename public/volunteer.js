@@ -9,6 +9,7 @@ const emailEl = document.getElementById('email');
 const ageEl = document.getElementById('age');
 const genderEl = document.getElementById('gender');
 const activityEl = document.getElementById('activity');
+const volIdBadgeEl = document.getElementById('volIdBadge');
 
 const registeredYesBtn = document.getElementById('volunteerRegisteredYesBtn');
 const registeredNoBtn = document.getElementById('volunteerRegisteredNoBtn');
@@ -31,6 +32,8 @@ const signupPasswordEl = document.getElementById('signupPassword');
 const cameraEl = document.getElementById('camera');
 const canvasEl = document.getElementById('snapshotCanvas');
 const photoPreview = document.getElementById('photoPreview');
+const photoStatusEl = document.getElementById('photoStatus');
+const checkInBtnEl = document.getElementById('checkInBtn');
 
 const VOLUNTEER_ID_KEY = 'volopsVolunteerId';
 const VOLUNTEER_TOKEN_KEY = 'volopsVolunteerAuthToken';
@@ -66,6 +69,24 @@ function setLoginBadge(text, ok = false) {
 function setMode(mode) {
   loginFieldsEl.style.display = mode === 'login' ? 'block' : 'none';
   signupFieldsEl.style.display = mode === 'signup' ? 'block' : 'none';
+}
+
+function updateCheckInBtn() {
+  const photoReady = Boolean(photoDataUrl);
+  checkInBtnEl.disabled = !photoReady;
+  if (photoReady) {
+    checkInBtnEl.title = '';
+    if (photoStatusEl) {
+      photoStatusEl.textContent = 'Selfie captured. Ready to check in.';
+      photoStatusEl.style.color = '#059669';
+    }
+  } else {
+    checkInBtnEl.title = 'Capture selfie first';
+    if (photoStatusEl) {
+      photoStatusEl.textContent = 'Selfie required before check-in.';
+      photoStatusEl.style.color = '#e11d48';
+    }
+  }
 }
 
 async function authedFetch(url, options = {}) {
@@ -110,6 +131,11 @@ function applyVolunteerToForm(volunteer) {
   ageEl.value = volunteer.age || '';
   genderEl.value = volunteer.gender || '';
   emailEl.value = volunteer.email || '';
+  if (volIdBadgeEl) volIdBadgeEl.textContent = volunteer.volId || volunteer.id || '-';
+  const dashVolIdEl = document.getElementById('dashVolId');
+  const dashVolNameEl = document.getElementById('dashVolName');
+  if (dashVolIdEl) dashVolIdEl.textContent = volunteer.volId || volunteer.id || '-';
+  if (dashVolNameEl) dashVolNameEl.textContent = volunteer.name || volunteer.email || '';
   setLoginBadge(`Logged in: ${volunteer.name || volunteer.email}`, true);
 
   authWrapperEl.style.display = 'none';
@@ -137,16 +163,38 @@ async function loadEvent(token) {
   activeEvent = null;
   activeDrive = null;
 
+  // Try as short 6-char drive code first
+  if (/^[A-Z0-9]{6}$/i.test(cleanToken)) {
+    const codeRes = await fetch(`/api/drives/code/${encodeURIComponent(cleanToken.toUpperCase())}`);
+    if (codeRes.ok) {
+      const codeData = await codeRes.json();
+      activeDrive = codeData;
+      // Use the UUID token for actual check-in
+      tokenInput.value = codeData.drive.token;
+      const completedNote = codeData.drive.completedAt ? '<br /><span style="color:#e11d48">⚠ Drive completed.</span>' : '';
+      eventInfo.innerHTML = `
+        <strong>${codeData.organization.name}</strong><br />
+        Drive Manager: ${codeData.drive.managerName}<br />
+        Location: ${codeData.drive.location}<br />
+        Start: ${new Date(codeData.drive.startsAt).toLocaleString()}<br />
+        End: ${new Date(codeData.drive.endsAt).toLocaleString()}${completedNote}<br />
+        Enter organization code for check-in.
+      `;
+      return;
+    }
+  }
+
   const driveRes = await fetch(`/api/drives/token/${encodeURIComponent(cleanToken)}`);
   if (driveRes.ok) {
     const driveData = await driveRes.json();
     activeDrive = driveData;
+    const completedNote = driveData.drive.completedAt ? '<br /><span style="color:#e11d48">⚠ Drive completed by site manager.</span>' : '';
     eventInfo.innerHTML = `
       <strong>${driveData.organization.name}</strong><br />
       Drive Manager: ${driveData.drive.managerName}<br />
       Location: ${driveData.drive.location}<br />
       Start: ${new Date(driveData.drive.startsAt).toLocaleString()}<br />
-      End: ${new Date(driveData.drive.endsAt).toLocaleString()}<br />
+      End: ${new Date(driveData.drive.endsAt).toLocaleString()}${completedNote}<br />
       Enter organization code for check-in.
     `;
     return;
@@ -256,7 +304,7 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
   }
 });
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
+function doLogout() {
   currentVolunteer = null;
   volunteerAuthToken = null;
   localStorage.removeItem(VOLUNTEER_TOKEN_KEY);
@@ -265,12 +313,18 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   emailEl.value = '';
   ageEl.value = '';
   genderEl.value = '';
+  if (volIdBadgeEl) volIdBadgeEl.textContent = '-';
   setLoginBadge('Not Logged In', false);
   setStatus('Logged out.');
 
   authWrapperEl.style.display = 'block';
   dashboardWrapperEl.style.display = 'none';
-});
+}
+
+document.getElementById('logoutBtn').addEventListener('click', doLogout);
+
+const dashLogoutBtnEl = document.getElementById('dashLogoutBtn');
+if (dashLogoutBtnEl) dashLogoutBtnEl.addEventListener('click', doLogout);
 
 document.getElementById('loadEventBtn').addEventListener('click', async () => {
   try { await loadEvent(tokenInput.value); setStatus('Token loaded.'); } catch (e) { setStatus(e.message, 'warn'); }
@@ -278,9 +332,9 @@ document.getElementById('loadEventBtn').addEventListener('click', async () => {
 
 document.getElementById('startCamBtn').addEventListener('click', async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
     cameraEl.srcObject = stream;
-    setStatus('Camera started.');
+    setStatus('Camera started. Point camera at yourself and capture selfie.');
   } catch { setStatus('Camera access failed.', 'warn'); }
 });
 
@@ -294,15 +348,17 @@ document.getElementById('captureBtn').addEventListener('click', () => {
   photoPreview.src = photoDataUrl;
   photoPreview.style.display = 'block';
   stopCameraStream();
-  setStatus('Photo captured. Camera stopped.');
+  updateCheckInBtn();
+  setStatus('Selfie captured. Camera stopped. You can now check in.');
 });
 
-document.getElementById('checkInBtn').addEventListener('click', async () => {
+checkInBtnEl.addEventListener('click', async () => {
   try {
     if (!currentVolunteer?.id || !volunteerAuthToken) throw new Error('Login first');
-    if (!activeEvent && !activeDrive) throw new Error('Load event/drive token first');
+    if (!activeEvent && !activeDrive) throw new Error('Load event/drive token or drive code first');
     if (!nameEl.value.trim()) throw new Error('Name is required');
     if (activeDrive && !orgCodeInput.value.trim()) throw new Error('Organization code required for drive');
+    if (!photoDataUrl) throw new Error('Selfie required. Please capture your photo before checking in.');
 
     const coords = await getCurrentLocation();
     const r = await authedFetch('/api/checkin', {
@@ -328,7 +384,7 @@ document.getElementById('checkInBtn').addEventListener('click', async () => {
     activeSessionId = data.sessionId;
     startTimer(data.timeIn);
     startGeofenceTracking();
-    setStatus('Checked in successfully.');
+    setStatus('Checked in successfully. Timer started.');
   } catch (e) { setStatus(e.message, 'warn'); }
 });
 
@@ -366,6 +422,7 @@ if (startupToken) {
 }
 
 setMode('login');
+updateCheckInBtn();
 hydrateVolunteerFromLocalStorage().then(() => {
   if (!currentVolunteer) setLoginBadge('Not Logged In', false);
 });

@@ -63,6 +63,7 @@ function seedData() {
     volunteers: [
       {
         id: 'vol-test-1',
+        volId: 'VOL-100001',
         identityKey: normalizeIdentity('email', 'demo.volunteer@volops.dev'),
         loginMethod: 'email',
         email: 'demo.volunteer@volops.dev',
@@ -160,6 +161,10 @@ function readDb() {
       v.passwordHash = v.email === 'demo.volunteer@volops.dev' ? hashPassword('demo123') : '';
       changed = true;
     }
+    if (!v.volId) {
+      v.volId = v.id === 'vol-test-1' ? 'VOL-100001' : generateUniqueVolId(db);
+      changed = true;
+    }
   }
   for (const m of db.siteManagers) {
     if (!m.uniqueManagerId) {
@@ -255,6 +260,23 @@ function generateUniqueManagerId(db) {
     id = `MGR-${Math.floor(100000 + Math.random() * 900000)}`;
   } while (db.siteManagers.some((m) => m.uniqueManagerId === id));
   return id;
+}
+
+function generateUniqueVolId(db) {
+  let id = '';
+  do {
+    id = `VOL-${Math.floor(100000 + Math.random() * 900000)}`;
+  } while (db.volunteers.some((v) => v.volId === id));
+  return id;
+}
+
+function generateDriveCode(db) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  do {
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (db.drives.some((d) => !d.deletedAt && d.driveCode === code));
+  return code;
 }
 
 function deriveOrganizationCode(orgId) {
@@ -367,8 +389,10 @@ app.post('/api/volunteers/verify-otp', (req, res) => {
   let volunteer = db.volunteers.find((v) => v.identityKey === challenge.identityKey);
 
   if (!volunteer) {
+    const volId = generateUniqueVolId(db);
     volunteer = {
       id: crypto.randomUUID(),
+      volId,
       identityKey: challenge.identityKey,
       loginMethod: challenge.method,
       email: challenge.method === 'email' ? challenge.identifier : '',
@@ -390,6 +414,7 @@ app.post('/api/volunteers/verify-otp', (req, res) => {
     authToken,
     volunteer: {
       id: volunteer.id,
+      volId: volunteer.volId || '',
       loginMethod: volunteer.loginMethod,
       email: volunteer.email,
       phone: volunteer.phone,
@@ -418,8 +443,10 @@ app.post('/api/auth/volunteer/signup', (req, res) => {
     return res.status(409).json({ error: 'Volunteer already registered. Please login.' });
   }
 
+  const volId = generateUniqueVolId(db);
   const volunteer = {
     id: crypto.randomUUID(),
+    volId,
     identityKey: normalizeIdentity('email', cleanEmail),
     loginMethod: 'email',
     email: cleanEmail,
@@ -439,6 +466,7 @@ app.post('/api/auth/volunteer/signup', (req, res) => {
     authToken,
     volunteer: {
       id: volunteer.id,
+      volId: volunteer.volId,
       loginMethod: volunteer.loginMethod,
       email: volunteer.email,
       name: volunteer.name,
@@ -465,6 +493,7 @@ app.post('/api/auth/volunteer/login', (req, res) => {
     authToken,
     volunteer: {
       id: volunteer.id,
+      volId: volunteer.volId || '',
       loginMethod: volunteer.loginMethod,
       email: volunteer.email,
       name: volunteer.name,
@@ -483,6 +512,7 @@ app.get('/api/volunteers/:id', requireRole('volunteer'), (req, res) => {
   res.json({
     volunteer: {
       id: volunteer.id,
+      volId: volunteer.volId || '',
       loginMethod: volunteer.loginMethod,
       email: volunteer.email,
       phone: volunteer.phone,
@@ -715,6 +745,7 @@ app.get('/api/orgs/:orgId/sheet', requireRole('organization'), (req, res) => {
       const tin = new Date(s.timeIn).getTime();
       if (tin < start || tin > end) continue;
       rows.push({
+        sessionId: s.id,
         driveId: drive.id,
         driveLocation: drive.location,
         driveStartsAt: drive.startsAt,
@@ -731,6 +762,46 @@ app.get('/api/orgs/:orgId/sheet', requireRole('organization'), (req, res) => {
 
   rows.sort((a, b) => new Date(a.timeIn).getTime() - new Date(b.timeIn).getTime());
   res.json({ organization: { id: org.id, name: org.name, location: org.location }, date, rows });
+});
+
+// Org: get all drives under org
+app.get('/api/orgs/:orgId/drives', requireRole('organization'), (req, res) => {
+  if (req.auth.orgId !== req.params.orgId) return res.status(403).json({ error: 'Access denied' });
+  const db = readDb();
+  const org = db.organizations.find((o) => o.id === req.params.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+  const drives = db.drives
+    .filter((d) => !d.deletedAt && d.orgId === org.id)
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
+    .map((d) => ({
+      ...d,
+      volunteerCount: db.sessions.filter((s) => s.driveId === d.id).length
+    }));
+  res.json({ drives });
+});
+
+// Org: delete (override) a specific volunteer session
+app.delete('/api/orgs/:orgId/sessions/:sessionId', requireRole('organization'), (req, res) => {
+  if (req.auth.orgId !== req.params.orgId) return res.status(403).json({ error: 'Access denied' });
+  const db = readDb();
+  const org = db.organizations.find((o) => o.id === req.params.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+  const sessionIdx = db.sessions.findIndex((s) => s.id === req.params.sessionId);
+  if (sessionIdx === -1) return res.status(404).json({ error: 'Session not found' });
+
+  const session = db.sessions[sessionIdx];
+  // Verify session belongs to this org via its drive
+  const drive = session.driveId ? db.drives.find((d) => d.id === session.driveId) : null;
+  const event = session.eventId ? db.events.find((e) => e.id === session.eventId) : null;
+  const site = event ? db.sites.find((s) => s.id === event.siteId) : null;
+  const sessionOrgId = drive ? drive.orgId : (site ? site.orgId : null);
+  if (sessionOrgId !== org.id) return res.status(403).json({ error: 'Session does not belong to this organization' });
+
+  db.sessions.splice(sessionIdx, 1);
+  writeDb(db);
+  res.json({ deleted: true });
 });
 
 app.post('/api/site-manager/request-otp', (req, res) => {
@@ -913,6 +984,7 @@ app.post('/api/site-manager/drives', requireRole('site_manager'), (req, res) => 
   }
 
   const token = crypto.randomUUID();
+  const driveCode = generateDriveCode(db);
   const drive = {
     id: crypto.randomUUID(),
     managerName: String(managerName).trim(),
@@ -923,6 +995,8 @@ app.post('/api/site-manager/drives', requireRole('site_manager'), (req, res) => 
     startsAt: new Date(startsAt).toISOString(),
     endsAt: new Date(endsAt).toISOString(),
     token,
+    driveCode,
+    completedAt: null,
     createdAt: new Date().toISOString(),
     deletedAt: null
   };
@@ -943,6 +1017,24 @@ app.delete('/api/site-manager/drives/:driveId', requireRole('site_manager'), (re
   res.json({ deleted: true });
 });
 
+app.post('/api/site-manager/drives/:driveId/complete', requireRole('site_manager'), (req, res) => {
+  const db = readDb();
+  const drive = db.drives.find((d) => d.id === req.params.driveId);
+  if (!drive) return res.status(404).json({ error: 'Drive not found' });
+  if (req.auth.orgId !== drive.orgId) return res.status(403).json({ error: 'Access denied for this drive' });
+  if (drive.deletedAt) return res.status(400).json({ error: 'Drive is already deleted' });
+  if (drive.completedAt) return res.status(400).json({ error: 'Drive is already completed' });
+  drive.completedAt = new Date().toISOString();
+  // Auto-checkout all still-active sessions for this drive
+  for (const s of db.sessions) {
+    if (s.driveId === drive.id && !s.timeOut) {
+      s.timeOut = drive.completedAt;
+    }
+  }
+  writeDb(db);
+  res.json({ completed: true, completedAt: drive.completedAt });
+});
+
 app.get('/api/site-manager/drives', requireRole('site_manager'), (req, res) => {
   const { orgCode } = req.query;
   const db = readDb();
@@ -956,7 +1048,11 @@ app.get('/api/site-manager/drives', requireRole('site_manager'), (req, res) => {
     rows = rows.filter((d) => d.orgId === req.auth.orgId);
   }
   rows = rows.sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
-  res.json({ drives: rows });
+  const drivesWithCount = rows.map((d) => ({
+    ...d,
+    volunteerCount: db.sessions.filter((s) => s.driveId === d.id).length
+  }));
+  res.json({ drives: drivesWithCount });
 });
 
 app.get('/api/drives/token/:token', (req, res) => {
@@ -969,10 +1065,39 @@ app.get('/api/drives/token/:token', (req, res) => {
   res.json({
     drive: {
       id: drive.id,
+      driveCode: drive.driveCode || '',
       managerName: drive.managerName,
       location: drive.location,
       startsAt: drive.startsAt,
-      endsAt: drive.endsAt
+      endsAt: drive.endsAt,
+      completedAt: drive.completedAt || null
+    },
+    organization: {
+      id: org.id,
+      name: org.name
+    }
+  });
+});
+
+// Look up drive by short driveCode (public endpoint for volunteer entry)
+app.get('/api/drives/code/:driveCode', (req, res) => {
+  const db = readDb();
+  const code = String(req.params.driveCode || '').trim().toUpperCase();
+  const drive = db.drives.find((d) => !d.deletedAt && (d.driveCode || '').toUpperCase() === code);
+  if (!drive) return res.status(404).json({ error: 'Invalid drive code' });
+  const org = db.organizations.find((o) => o.id === drive.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+  res.json({
+    drive: {
+      id: drive.id,
+      driveCode: drive.driveCode || '',
+      token: drive.token,
+      managerName: drive.managerName,
+      location: drive.location,
+      startsAt: drive.startsAt,
+      endsAt: drive.endsAt,
+      completedAt: drive.completedAt || null
     },
     organization: {
       id: org.id,
@@ -1074,6 +1199,22 @@ app.post('/api/checkin', requireRole('volunteer'), (req, res) => {
     return res.status(409).json({
       error: 'You are already checked in. Please check out before checking in again.'
     });
+  }
+
+  // Drive time-window and completion enforcement
+  if (drive) {
+    if (drive.completedAt) {
+      return res.status(403).json({ error: 'This drive has already been completed by the site manager.' });
+    }
+    const now = Date.now();
+    const driveStart = new Date(drive.startsAt).getTime();
+    const driveEnd = new Date(drive.endsAt).getTime();
+    if (now < driveStart) {
+      return res.status(403).json({ error: `Check-in is not open yet. Drive starts at ${new Date(drive.startsAt).toLocaleString()}.` });
+    }
+    if (now > driveEnd) {
+      return res.status(403).json({ error: `Check-in is closed. Drive ended at ${new Date(drive.endsAt).toLocaleString()}.` });
+    }
   }
 
   const site = event ? db.sites.find((s) => s.id === event.siteId) : null;

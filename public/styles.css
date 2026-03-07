@@ -270,6 +270,32 @@ select:focus {
   box-shadow: 0 0 15px rgba(192, 132, 252, 0.1);
 }
 
+.vol-id-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  border-radius: 999px;
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #065f46;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.required-badge {
+  display: inline-block;
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  margin-left: 6px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .timer-box strong {
   font-family: 'Playfair Display', serif;
   font-size: 1.3rem;
