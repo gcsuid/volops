@@ -539,158 +539,12 @@ a.link:hover {
   inset: 0;
   background: var(--bg);
   z-index: 9999;
-  display: grid;
-  place-items: center;
-  animation: preloaderFadeOut 1s cubic-bezier(0.8, 0, 0.2, 1) 4.5s forwards;
-}
-
-.scene {
-  position: relative;
-  width: 300px;
-  height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  animation: preloaderFadeOut 0.5s ease 5.2s forwards;
 }
-
-/* Volunteer Figure */
-.volunteer-figure {
-  position: absolute;
-  bottom: 0px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation: walkToBoxTopDown 2.5s linear forwards;
-  z-index: 2;
-}
-
-.leg-left {
-  display: none;
-}
-
-.leg-right {
-  display: none;
-}
-
-.arm-left {
-  animation: armSwingLeft 0.4s 6 alternate ease-in-out forwards;
-  transform-origin: 14px 50px;
-}
-
-.arm-right {
-  animation: armSwingRight 0.4s 6 alternate ease-in-out forwards;
-  transform-origin: 86px 50px;
-}
-
-@keyframes armSwingLeft {
-  0% {
-    transform: translateY(-15px);
-  }
-
-  100% {
-    transform: translateY(15px);
-  }
-}
-
-@keyframes armSwingRight {
-  0% {
-    transform: translateY(15px);
-  }
-
-  100% {
-    transform: translateY(-15px);
-  }
-}
-
-/* Magic Box */
-.magic-box {
-  position: absolute;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 40px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-}
-
-/* Box Lid */
-.box-lid {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  transform-origin: center right;
-  animation: openLidTopDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 2.5s forwards;
-  z-index: 2;
-}
-
-/* Glow inside the box */
-.box-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  background: #fff;
-  border-radius: 50%;
-  opacity: 0;
-  box-shadow: 0 0 100px 50px #fff, 0 0 200px 100px var(--brand);
-  transform: translate(-50%, -50%) scale(1);
-  animation: emitIntenseGlow 1.8s cubic-bezier(0.16, 1, 0.3, 1) 2.6s forwards;
-  z-index: 5;
-}
-
-@keyframes walkToBoxTopDown {
-  0% {
-    transform: translate(-50%, 0);
-  }
-
-  100% {
-    transform: translate(-50%, -185px);
-  }
-}
-
-@keyframes openLidTopDown {
-  0% {
-    transform: rotate(0) translateX(0);
-  }
-
-  100% {
-    transform: rotate(120deg) translateX(40px);
-    opacity: 0;
-  }
-}
-
-@keyframes emitIntenseGlow {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  20% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(50);
-    background: #fff;
-  }
-
-  80% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(300);
-    background: #fff;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(500);
-  }
-}
-
-
 
 @keyframes preloaderFadeOut {
   0% {
@@ -701,8 +555,28 @@ a.link:hover {
   100% {
     opacity: 0;
     visibility: hidden;
-    transform: scale(1.1);
   }
+}
+
+.dot-loader-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  width: fit-content;
+  transform: scale(1.5);
+}
+
+.dot-loader-grid .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background-color 0.1s;
+}
+
+.dot-loader-grid .dot.active {
+  background: #ffffff;
+  box-shadow: 0 0 10px 4px rgba(255, 255, 255, 0.6);
 }
 
 /* Organic Grid & Cards for Login / General use */
