@@ -11,25 +11,7 @@
 <body>
   <!-- Preloader Sequence -->
   <div id="preloader">
-    <div class="scene">
-      <div class="volunteer-figure">
-        <svg viewBox="0 0 100 100" width="120" height="120">
-          <!-- Shoulders/Vest -->
-          <rect x="20" y="35" width="60" height="30" rx="15" fill="#d67d2f" />
-          <!-- Arms -->
-          <g stroke="#a1a1aa" stroke-width="12" stroke-linecap="round">
-            <line x1="14" y1="50" x2="14" y2="70" class="arm-left" />
-            <line x1="86" y1="50" x2="86" y2="30" class="arm-right" />
-          </g>
-          <!-- Head -->
-          <circle cx="50" cy="50" r="16" fill="#e2e8f0" />
-        </svg>
-      </div>
-      <div class="magic-box">
-        <div class="box-lid"></div>
-        <div class="box-glow"></div>
-      </div>
-    </div>
+    <div id="dotLoader" class="dot-loader-grid"></div>
   </div>
 
   <main class="landing">
@@ -76,6 +58,62 @@
       </div>
     </section>
   </main>
+  <script>
+    // Dot Loader Animation Script
+    const frames = [
+      [14, 7, 0, 8, 6, 13, 20],
+      [14, 7, 13, 20, 16, 27, 21],
+      [14, 20, 27, 21, 34, 24, 28],
+      [27, 21, 34, 28, 41, 32, 35],
+      [34, 28, 41, 35, 48, 40, 42],
+      [34, 28, 41, 35, 48, 42, 46],
+      [34, 28, 41, 35, 48, 42, 38],
+      [34, 28, 41, 35, 48, 30, 21],
+      [34, 28, 41, 48, 21, 22, 14],
+      [34, 28, 41, 21, 14, 16, 27],
+      [34, 28, 21, 14, 10, 20, 27],
+      [28, 21, 14, 4, 13, 20, 27],
+      [28, 21, 14, 12, 6, 13, 20],
+      [28, 21, 14, 6, 13, 20, 11],
+      [28, 21, 14, 6, 13, 20, 10],
+      [14, 6, 13, 20, 9, 7, 21],
+    ];
+
+    const loaderGrid = document.getElementById('dotLoader');
+    const totalDots = 49;
+    const duration = 100;
+
+    // Create the 49 DOT DOM elements
+    for (let i = 0; i < totalDots; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      loaderGrid.appendChild(dot);
+    }
+
+    const dotsArray = Array.from(loaderGrid.children);
+    let currentIndex = 0;
+
+    // Animation loop identical to the React useEffect approach
+    const intervalId = setInterval(() => {
+      const currentFrameIndices = frames[currentIndex];
+
+      dotsArray.forEach((dot, index) => {
+        if (currentFrameIndices.includes(index)) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+
+      currentIndex = (currentIndex + 1) % frames.length;
+    }, duration);
+
+    // Cleanup script after preloader fades (5 secs)
+    setTimeout(() => {
+      clearInterval(intervalId);
+    }, 5500);
+
+  </script>
 </body>
 
 </html>
