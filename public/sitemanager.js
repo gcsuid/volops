@@ -115,34 +115,23 @@ document.getElementById('managerSignupBtn').addEventListener('click', async () =
 
     if (!email || !name || !companyId) throw new Error("All fields are required");
 
-    // 1. Find the organization ID using the provided Company ID
-    const { data: orgData, error: orgError } = await supabase.from('organizations').select('id, name, org_code').eq('company_id', companyId).single();
-    if (orgError || !orgData) throw new Error("Invalid Company ID. Ensure the organization has registered.");
-
-    const uniqueId = `MGR-${Math.floor(100000 + Math.random() * 900000)}`;
-
-    // 2. Sign up user via Supabase Auth, using the generated unique ID as their password so they can log in later
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password: uniqueId
+    // 1. Sign up via server endpoint (bypasses email rate limits)
+    const response = await fetch('/api/sitemanager/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, companyId })
     });
-    if (authError) throw authError;
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Signup failed');
 
-    const user = authData.user;
-    if (!user) throw new Error("Signup failed");
-
-    // 3. Insert into the site_managers table
-    const { data: manager, error: dbError } = await supabase.from('site_managers').insert([{
-      id: user.id,
-      org_id: orgData.id,
-      name,
+    // 2. Sign in client-side using the generated unique manager ID as password
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
-      unique_manager_id: uniqueId
-    }]).select().single();
+      password: result.manager.unique_manager_id
+    });
+    if (signInError) throw signInError;
 
-    if (dbError) throw dbError;
-
-    applyManagerSession(manager, orgData);
+    applyManagerSession(result.manager, result.org);
     await loadDrives();
   } catch (err) {
     setBadge(err.message || 'Signup failed', false);

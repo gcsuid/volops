@@ -216,35 +216,27 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
     const name = signupNameEl.value.trim();
     const age = Number(signupAgeEl.value);
     const gender = signupGenderEl.value;
+    const password = signupPasswordEl.value;
 
-    if (!name || !age || !gender || !email) throw new Error("All fields are required");
+    if (!name || !age || !gender || !email || !password) throw new Error("All fields are required");
 
-    // 1. Sign up the user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password: signupPasswordEl.value
+    // 1. Sign up via server endpoint (bypasses email rate limits)
+    const response = await fetch('/api/volunteer/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name, age, gender })
     });
-    if (authError) throw authError;
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Signup failed');
 
-    const user = authData.user;
-    if (!user) throw new Error("Signup failed");
-
-    // 2. Generate a volId
-    const volId = `VOL-${Math.floor(100000 + Math.random() * 900000)}`;
-
-    // 3. Create the volunteer profile record
-    const { data: profile, error: dbError } = await supabase.from('volunteers').insert([{
-      id: user.id,
-      vol_id: volId,
-      name,
+    // 2. Sign in client-side to establish Supabase session
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
-      age,
-      gender
-    }]).select().single();
+      password
+    });
+    if (signInError) throw signInError;
 
-    if (dbError) throw dbError;
-
-    applyVolunteerToForm(profile);
+    applyVolunteerToForm(result.profile);
     setStatus('Signup successful.');
   } catch (e) {
     setStatus(e.message, 'warn');
