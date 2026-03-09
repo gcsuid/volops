@@ -115,23 +115,81 @@ document.getElementById('managerSignupBtn').addEventListener('click', async () =
 
     if (!email || !name || !companyId) throw new Error("All fields are required");
 
-    // 1. Sign up via server endpoint (bypasses email rate limits)
+    let manager = null;
+    let org = null;
+
+    // 1. Try server-side signup first (bypasses email rate limits)
     const response = await fetch('/api/sitemanager/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name, companyId })
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Signup failed');
 
-    // 2. Sign in client-side using the generated unique manager ID as password
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: result.manager.unique_manager_id
-    });
-    if (signInError) throw signInError;
+    if (response.ok) {
+      // Server-side signup succeeded
+      const result = await response.json();
+      manager = result.manager;
+      org = result.org;
 
-    applyManagerSession(result.manager, result.org);
+      // Sign in client-side using the generated unique manager ID as password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: manager.unique_manager_id
+      });
+      if (signInError) throw signInError;
+
+    } else if (response.status === 503) {
+      // Server-side signup unavailable — fall back to client-side Supabase Auth
+
+      // Verify the organization exists
+      const { data: orgData, error: orgError } = await supabase.from('organizations')
+        .select('id, name, org_code')
+        .eq('company_id', companyId)
+        .single();
+
+      if (orgError || !orgData) {
+        throw new Error('Invalid Company ID. Ensure the organization has registered.');
+      }
+      org = orgData;
+
+      // Generate unique manager ID (also used as password)
+      const uniqueId = 'MGR-' + String(Math.floor(100000 + Math.random() * 900000));
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: uniqueId
+      });
+      if (signUpError) throw signUpError;
+
+      let userId = signUpData.session?.user?.id || signUpData.user?.id;
+      if (!userId) {
+        throw new Error('Signup submitted. Please check your email to confirm, then log in.');
+      }
+
+      // If session was not returned by signUp, sign in explicitly
+      if (!signUpData.session) {
+        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: uniqueId
+        });
+        if (signInError) throw signInError;
+        userId = authData.user.id;
+      }
+
+      // Create site manager profile record
+      const { data: mgrData, error: dbError } = await supabase.from('site_managers').insert([{
+        id: userId, org_id: orgData.id, name, email, unique_manager_id: uniqueId
+      }]).select().single();
+      if (dbError) throw dbError;
+      manager = mgrData;
+
+    } else {
+      // Other server error
+      const result = await response.json();
+      throw new Error(result.error || 'Signup failed');
+    }
+
+    applyManagerSession(manager, org);
     await loadDrives();
   } catch (err) {
     setBadge(err.message || 'Signup failed', false);
