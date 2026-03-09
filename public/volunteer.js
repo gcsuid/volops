@@ -62,6 +62,14 @@ function setLoginBadge(text, ok = false) {
 function setMode(mode) {
   loginFieldsEl.style.display = mode === 'login' ? 'block' : 'none';
   signupFieldsEl.style.display = mode === 'signup' ? 'block' : 'none';
+
+  if (mode === 'login') {
+    registeredYesBtn.classList.remove('btn-secondary');
+    registeredNoBtn.classList.add('btn-secondary');
+  } else {
+    registeredNoBtn.classList.remove('btn-secondary');
+    registeredYesBtn.classList.add('btn-secondary');
+  }
 }
 
 function updateCheckInBtn() {

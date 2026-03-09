@@ -45,6 +45,14 @@ function setBadge(text, ok = false) {
 function setMode(mode) {
   managerLoginFieldsEl.style.display = mode === 'login' ? 'block' : 'none';
   managerSignupFieldsEl.style.display = mode === 'signup' ? 'block' : 'none';
+
+  if (mode === 'login') {
+    managerRegisteredYesBtn.classList.remove('btn-secondary');
+    managerRegisteredNoBtn.classList.add('btn-secondary');
+  } else {
+    managerRegisteredNoBtn.classList.remove('btn-secondary');
+    managerRegisteredYesBtn.classList.add('btn-secondary');
+  }
 }
 
 function applyManagerSession(manager, org) {

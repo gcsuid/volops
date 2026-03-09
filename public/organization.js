@@ -39,6 +39,14 @@ function setBadge(text, ok = false) {
 function setMode(mode) {
   orgLoginFieldsEl.style.display = mode === 'login' ? 'block' : 'none';
   orgSignupFieldsEl.style.display = mode === 'signup' ? 'block' : 'none';
+
+  if (mode === 'login') {
+    orgRegisteredYesBtn.classList.remove('btn-secondary');
+    orgRegisteredNoBtn.classList.add('btn-secondary');
+  } else {
+    orgRegisteredNoBtn.classList.remove('btn-secondary');
+    orgRegisteredYesBtn.classList.add('btn-secondary');
+  }
 }
 
 function formatDateForInput(date) {
