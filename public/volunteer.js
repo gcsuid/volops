@@ -220,23 +220,57 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
 
     if (!name || !age || !gender || !email || !password) throw new Error("All fields are required");
 
-    // 1. Sign up via server endpoint (bypasses email rate limits)
+    let profile = null;
+
+    // 1. Try server-side signup first (bypasses email rate limits)
     const response = await fetch('/api/volunteer/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name, age, gender })
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Signup failed');
 
-    // 2. Sign in client-side to establish Supabase session
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (signInError) throw signInError;
+    if (response.ok) {
+      // Server-side signup succeeded
+      const result = await response.json();
+      profile = result.profile;
 
-    applyVolunteerToForm(result.profile);
+      // Sign in client-side to establish Supabase session
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
+
+    } else if (response.status === 503) {
+      // Server-side signup unavailable — fall back to client-side Supabase Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) throw signUpError;
+
+      // If email confirmation is required, the session may not be available yet
+      let userId = signUpData.session?.user?.id || signUpData.user?.id;
+      if (!userId) {
+        throw new Error('Signup submitted. Please check your email to confirm, then log in.');
+      }
+
+      // If session was not returned by signUp, sign in explicitly
+      if (!signUpData.session) {
+        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+        userId = authData.user.id;
+      }
+
+      // Create volunteer profile record
+      const volId = 'VOL-' + String(Math.floor(100000 + Math.random() * 900000));
+      const { data: profileData, error: dbError } = await supabase.from('volunteers').insert([{
+        id: userId, vol_id: volId, name, email, age, gender
+      }]).select().single();
+      if (dbError) throw dbError;
+      profile = profileData;
+
+    } else {
+      // Other server error
+      const result = await response.json();
+      throw new Error(result.error || 'Signup failed');
+    }
+
+    applyVolunteerToForm(profile);
     setStatus('Signup successful.');
   } catch (e) {
     setStatus(e.message, 'warn');

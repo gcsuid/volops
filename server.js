@@ -1540,15 +1540,27 @@ app.get('/api/reports/export.xlsx', requireRole('organization'), (req, res) => {
   res.send(html);
 });
 
+// ── Config Status Endpoint ────────────────────────────────────────────────────
+// Lets clients know whether server-side signup is available
+app.get('/api/config/status', (req, res) => {
+  res.json({
+    serverSignupAvailable: !!supabaseAdmin,
+    missingConfig: missingSupabaseEnv.length > 0 ? missingSupabaseEnv : undefined
+  });
+});
+
 // ── Supabase Admin Signup Endpoints ──────────────────────────────────────────
 // These bypass email rate limits by using the service role key to create users
 // with email_confirm: true so no confirmation email is sent.
+// When the server config is missing, clients should fall back to client-side
+// Supabase Auth signup.
 
 app.post('/api/volunteer/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {
       return res.status(503).json({
-        error: `Server-side signup is not available. Missing server config: ${missingSupabaseEnv.join(', ')}.`
+        error: 'Server-side signup is not available. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on the server.',
+        fallback: 'client'
       });
     }
 
@@ -1597,7 +1609,8 @@ app.post('/api/sitemanager/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {
       return res.status(503).json({
-        error: `Server-side signup is not available. Missing server config: ${missingSupabaseEnv.join(', ')}.`
+        error: 'Server-side signup is not available. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on the server.',
+        fallback: 'client'
       });
     }
 
