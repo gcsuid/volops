@@ -13,7 +13,7 @@ function loadDotEnvFile() {
 
   const raw = fs.readFileSync(envPath, 'utf8');
   for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
+    const trimmed = line.replace(/^\uFEFF/, '').trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
 
     const sepIndex = trimmed.indexOf('=');
@@ -36,11 +36,16 @@ loadDotEnvFile();
 // Supabase Admin client (uses service role key to bypass email rate limits)
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const missingSupabaseEnv = [];
+if (!SUPABASE_URL) missingSupabaseEnv.push('SUPABASE_URL');
+if (!SUPABASE_SERVICE_ROLE_KEY) missingSupabaseEnv.push('SUPABASE_SERVICE_ROLE_KEY');
 let supabaseAdmin = null;
-if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+if (missingSupabaseEnv.length === 0) {
   supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+} else {
+  console.warn(`[config] Supabase admin disabled. Missing env: ${missingSupabaseEnv.join(', ')}`);
 }
 
 const dataDir = path.join(__dirname, 'data');
@@ -1542,7 +1547,9 @@ app.get('/api/reports/export.xlsx', requireRole('organization'), (req, res) => {
 app.post('/api/volunteer/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {
-      return res.status(503).json({ error: 'Server-side signup is not available. Please contact support.' });
+      return res.status(503).json({
+        error: `Server-side signup is not available. Missing server config: ${missingSupabaseEnv.join(', ')}.`
+      });
     }
 
     const { email, password, name, age, gender } = req.body;
@@ -1589,7 +1596,9 @@ app.post('/api/volunteer/signup', async (req, res) => {
 app.post('/api/sitemanager/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {
-      return res.status(503).json({ error: 'Server-side signup is not available. Please contact support.' });
+      return res.status(503).json({
+        error: `Server-side signup is not available. Missing server config: ${missingSupabaseEnv.join(', ')}.`
+      });
     }
 
     const { email, name, companyId } = req.body;
