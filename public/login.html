@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VolOps Login</title>
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
   <script>
     if (localStorage.getItem('volopsVolunteerAuthToken')) window.location.href = '/volunteer.html';
@@ -25,9 +26,42 @@
 
     <section class="grid organic-grid">
       <article class="organic-card">
-        <div class="abstract-figure vol-figure">
-          <div class="orb"></div>
-          <div class="orb-ring"></div>
+        <div class="role-illustration vol-illustration">
+          <!-- Mario-like Volunteer Character SVG -->
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" class="role-svg">
+            <!-- Red Cap -->
+            <ellipse cx="60" cy="32" rx="22" ry="10" fill="#e53e3e" />
+            <rect x="40" y="22" width="40" height="12" rx="4" fill="#e53e3e" />
+            <rect x="44" y="24" width="14" height="8" rx="2" fill="#fff" />
+            <!-- Face -->
+            <circle cx="60" cy="46" r="16" fill="#fbd38d" />
+            <!-- Eyes -->
+            <circle cx="53" cy="44" r="3" fill="#1a202c" />
+            <circle cx="67" cy="44" r="3" fill="#1a202c" />
+            <!-- Mustache -->
+            <path d="M50 52 Q55 58 60 52 Q65 58 70 52" fill="#5a3e1b" stroke="#5a3e1b" stroke-width="1.5" />
+            <!-- Body (overalls) -->
+            <rect x="46" y="62" width="28" height="24" rx="4" fill="#3182ce" />
+            <!-- Shirt -->
+            <rect x="50" y="62" width="20" height="8" rx="2" fill="#e53e3e" />
+            <!-- Overall straps -->
+            <rect x="50" y="62" width="4" height="24" rx="1" fill="#2b6cb0" />
+            <rect x="66" y="62" width="4" height="24" rx="1" fill="#2b6cb0" />
+            <!-- Buttons -->
+            <circle cx="54" cy="74" r="2" fill="#ecc94b" />
+            <circle cx="66" cy="74" r="2" fill="#ecc94b" />
+            <!-- Arms -->
+            <rect x="32" y="64" width="14" height="6" rx="3" fill="#fbd38d" transform="rotate(-30 39 67)" />
+            <rect x="74" y="58" width="14" height="6" rx="3" fill="#fbd38d" transform="rotate(30 81 61)" />
+            <!-- Waving hand -->
+            <circle cx="86" cy="54" r="5" fill="#fbd38d" />
+            <!-- Legs -->
+            <rect x="48" y="86" width="10" height="14" rx="3" fill="#3182ce" />
+            <rect x="62" y="86" width="10" height="14" rx="3" fill="#3182ce" />
+            <!-- Shoes -->
+            <ellipse cx="53" cy="102" rx="8" ry="4" fill="#744210" />
+            <ellipse cx="67" cy="102" rx="8" ry="4" fill="#744210" />
+          </svg>
         </div>
         <h2>Volunteer</h2>
         <p class="small">Login or register as a volunteer, then check in for drives/events.</p>
@@ -37,8 +71,35 @@
       </article>
 
       <article class="organic-card">
-        <div class="abstract-figure org-figure">
-          <div class="hexagon"></div>
+        <div class="role-illustration org-illustration">
+          <!-- Building SVG -->
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" class="role-svg">
+            <!-- Main building -->
+            <rect x="25" y="30" width="70" height="80" rx="4" fill="#2d3748" />
+            <!-- Building top accent -->
+            <rect x="25" y="30" width="70" height="8" rx="4" fill="#22d3ee" />
+            <!-- Windows row 1 -->
+            <rect x="33" y="44" width="10" height="10" rx="2" fill="#63b3ed" />
+            <rect x="49" y="44" width="10" height="10" rx="2" fill="#63b3ed" />
+            <rect x="65" y="44" width="10" height="10" rx="2" fill="#90cdf4" />
+            <rect x="81" y="44" width="10" height="10" rx="2" fill="#63b3ed" />
+            <!-- Windows row 2 -->
+            <rect x="33" y="60" width="10" height="10" rx="2" fill="#90cdf4" />
+            <rect x="49" y="60" width="10" height="10" rx="2" fill="#63b3ed" />
+            <rect x="65" y="60" width="10" height="10" rx="2" fill="#63b3ed" />
+            <rect x="81" y="60" width="10" height="10" rx="2" fill="#90cdf4" />
+            <!-- Windows row 3 -->
+            <rect x="33" y="76" width="10" height="10" rx="2" fill="#63b3ed" />
+            <rect x="49" y="76" width="10" height="10" rx="2" fill="#90cdf4" />
+            <rect x="65" y="76" width="10" height="10" rx="2" fill="#63b3ed" />
+            <rect x="81" y="76" width="10" height="10" rx="2" fill="#63b3ed" />
+            <!-- Door -->
+            <rect x="50" y="92" width="20" height="18" rx="3" fill="#4a5568" />
+            <circle cx="66" cy="102" r="1.5" fill="#ecc94b" />
+            <!-- Roof antenna -->
+            <rect x="58" y="18" width="4" height="14" fill="#4a5568" />
+            <circle cx="60" cy="16" r="4" fill="#e53e3e" />
+          </svg>
         </div>
         <h2>Organization</h2>
         <p class="small">Login or register your organization, manage company/org codes, and view sheets.</p>
@@ -48,8 +109,44 @@
       </article>
 
       <article class="organic-card">
-        <div class="abstract-figure site-figure">
-          <div class="pyramid"></div>
+        <div class="role-illustration site-illustration">
+          <!-- Site Manager Face SVG -->
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" class="role-svg">
+            <!-- Hard hat -->
+            <ellipse cx="60" cy="35" rx="30" ry="12" fill="#ecc94b" />
+            <rect x="35" y="28" width="50" height="10" rx="4" fill="#ecc94b" />
+            <rect x="40" y="22" width="40" height="10" rx="5" fill="#d69e2e" />
+            <!-- Hard hat brim band -->
+            <rect x="35" y="34" width="50" height="4" rx="1" fill="#b7791f" />
+            <!-- Face -->
+            <circle cx="60" cy="58" r="22" fill="#fbd38d" />
+            <!-- Glasses frames -->
+            <rect x="40" y="50" width="16" height="12" rx="3" fill="none" stroke="#2d3748" stroke-width="2.5" />
+            <rect x="64" y="50" width="16" height="12" rx="3" fill="none" stroke="#2d3748" stroke-width="2.5" />
+            <line x1="56" y1="55" x2="64" y2="55" stroke="#2d3748" stroke-width="2" />
+            <!-- Lens glare -->
+            <rect x="42" y="52" width="5" height="4" rx="1" fill="rgba(99,179,237,0.3)" />
+            <rect x="66" y="52" width="5" height="4" rx="1" fill="rgba(99,179,237,0.3)" />
+            <!-- Eyes behind glasses -->
+            <circle cx="48" cy="56" r="2.5" fill="#1a202c" />
+            <circle cx="72" cy="56" r="2.5" fill="#1a202c" />
+            <!-- Smile -->
+            <path d="M50 68 Q60 76 70 68" fill="none" stroke="#c05621" stroke-width="2" stroke-linecap="round" />
+            <!-- Ears -->
+            <circle cx="37" cy="58" r="4" fill="#f6ad55" />
+            <circle cx="83" cy="58" r="4" fill="#f6ad55" />
+            <!-- Collar -->
+            <path d="M42 80 L60 90 L78 80" fill="#3182ce" stroke="#2b6cb0" stroke-width="1" />
+            <!-- Shirt visible -->
+            <rect x="42" y="80" width="36" height="20" rx="4" fill="#3182ce" />
+            <!-- Button -->
+            <circle cx="60" cy="88" r="2" fill="#fff" />
+            <!-- ID Badge -->
+            <rect x="66" y="84" width="10" height="14" rx="2" fill="#fff" />
+            <rect x="68" y="87" width="6" height="2" rx="1" fill="#e53e3e" />
+            <rect x="68" y="91" width="6" height="1" rx="0.5" fill="#a0aec0" />
+            <rect x="68" y="93" width="4" height="1" rx="0.5" fill="#a0aec0" />
+          </svg>
         </div>
         <h2>Site Manager</h2>
         <p class="small">Login or register as a site manager, then create and manage drives.</p>

@@ -24,7 +24,7 @@ const MANAGER_TOKEN_KEY = 'volopsSiteManagerAuthToken';
     window.location.replace('/sitemanager.html');
     return;
   }
-  window.location.replace('/organization.html');
+  window.location.replace('/login.html');
 })();
 
 let cache = { organizations: [], sites: [], events: [] };

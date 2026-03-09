@@ -10,6 +10,19 @@
 
 <body>
   <!-- Preloader Sequence -->
+  <script>
+    if (sessionStorage.getItem('volopsPreloaderShown')) {
+      document.documentElement.classList.add('skip-preloader');
+    } else {
+      sessionStorage.setItem('volopsPreloaderShown', 'true');
+    }
+  </script>
+  <style>
+    html.skip-preloader #preloader {
+      display: none !important;
+      animation: none !important;
+    }
+  </style>
   <div id="preloader">
     <div id="dotLoader" class="dot-loader-grid"></div>
   </div>

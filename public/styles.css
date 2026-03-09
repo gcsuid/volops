@@ -662,6 +662,86 @@ a.link:hover {
   animation: float 6s ease-in-out infinite;
 }
 
+/* Role Illustrations for Login Cards */
+.role-illustration {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.role-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+/* Volunteer: bouncy Mario-like hop */
+.vol-illustration {
+  animation: volBounce 1.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
+@keyframes volBounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  30% {
+    transform: translateY(-18px) scaleY(1.04);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+
+  70% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Organization: gentle sway/pulse */
+.org-illustration {
+  animation: orgPulse 4s ease-in-out infinite;
+}
+
+@keyframes orgPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+  }
+}
+
+/* Site Manager: subtle nod */
+.site-illustration {
+  animation: siteNod 3s ease-in-out infinite;
+}
+
+@keyframes siteNod {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(3deg);
+  }
+
+  75% {
+    transform: rotate(-3deg);
+  }
+}
+
 .vol-figure .orb {
   width: 80px;
   height: 80px;
