@@ -2,9 +2,20 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Supabase Admin client (uses service role key to bypass email rate limits)
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+let supabaseAdmin = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+}
 
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'db.json');
@@ -1496,6 +1507,113 @@ app.get('/api/reports/export.xlsx', requireRole('organization'), (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="volunteer-report-${Date.now()}.xls"`);
   res.send(html);
+});
+
+// ── Supabase Admin Signup Endpoints ──────────────────────────────────────────
+// These bypass email rate limits by using the service role key to create users
+// with email_confirm: true so no confirmation email is sent.
+
+app.post('/api/volunteer/signup', async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Server-side signup is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.' });
+    }
+
+    const { email, password, name, age, gender } = req.body;
+    if (!email || !password || !name || !age || !gender) {
+      return res.status(400).json({ error: 'All fields are required (email, password, name, age, gender).' });
+    }
+
+    // 1. Create user via admin API (auto-confirmed, no email sent)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true
+    });
+
+    if (authError) {
+      return res.status(400).json({ error: authError.message });
+    }
+
+    const user = authData.user;
+
+    // 2. Generate volunteer ID
+    const volId = `VOL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // 3. Create volunteer profile record
+    const { data: profile, error: dbError } = await supabaseAdmin.from('volunteers').insert([{
+      id: user.id,
+      vol_id: volId,
+      name,
+      email,
+      age: Number(age),
+      gender
+    }]).select().single();
+
+    if (dbError) {
+      return res.status(500).json({ error: dbError.message });
+    }
+
+    res.json({ profile });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+app.post('/api/sitemanager/signup', async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Server-side signup is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.' });
+    }
+
+    const { email, name, companyId } = req.body;
+    if (!email || !name || !companyId) {
+      return res.status(400).json({ error: 'All fields are required (email, name, companyId).' });
+    }
+
+    // 1. Verify the organization exists
+    const { data: orgData, error: orgError } = await supabaseAdmin.from('organizations')
+      .select('id, name, org_code')
+      .eq('company_id', companyId.toUpperCase())
+      .single();
+
+    if (orgError || !orgData) {
+      return res.status(400).json({ error: 'Invalid Company ID. Ensure the organization has registered.' });
+    }
+
+    // 2. Generate unique manager ID (also used as password)
+    const uniqueId = `MGR-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // 3. Create user via admin API (auto-confirmed, no email sent)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: uniqueId,
+      email_confirm: true
+    });
+
+    if (authError) {
+      return res.status(400).json({ error: authError.message });
+    }
+
+    const user = authData.user;
+
+    // 4. Create site manager profile record
+    const { data: manager, error: dbError } = await supabaseAdmin.from('site_managers').insert([{
+      id: user.id,
+      org_id: orgData.id,
+      name,
+      email,
+      unique_manager_id: uniqueId
+    }]).select().single();
+
+    if (dbError) {
+      return res.status(500).json({ error: dbError.message });
+    }
+
+    res.json({ manager, org: orgData });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 app.get(/.*/, (req, res) => {
