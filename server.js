@@ -1516,7 +1516,7 @@ app.get('/api/reports/export.xlsx', requireRole('organization'), (req, res) => {
 app.post('/api/volunteer/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {
-      return res.status(503).json({ error: 'Server-side signup is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.' });
+      return res.status(503).json({ error: 'Server-side signup is not available. Please contact support.' });
     }
 
     const { email, password, name, age, gender } = req.body;
@@ -1538,7 +1538,7 @@ app.post('/api/volunteer/signup', async (req, res) => {
     const user = authData.user;
 
     // 2. Generate volunteer ID
-    const volId = `VOL-${Math.floor(100000 + Math.random() * 900000)}`;
+    const volId = `VOL-${crypto.randomInt(100000, 999999)}`;
 
     // 3. Create volunteer profile record
     const { data: profile, error: dbError } = await supabaseAdmin.from('volunteers').insert([{
@@ -1563,7 +1563,7 @@ app.post('/api/volunteer/signup', async (req, res) => {
 app.post('/api/sitemanager/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {
-      return res.status(503).json({ error: 'Server-side signup is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.' });
+      return res.status(503).json({ error: 'Server-side signup is not available. Please contact support.' });
     }
 
     const { email, name, companyId } = req.body;
@@ -1582,7 +1582,7 @@ app.post('/api/sitemanager/signup', async (req, res) => {
     }
 
     // 2. Generate unique manager ID (also used as password)
-    const uniqueId = `MGR-${Math.floor(100000 + Math.random() * 900000)}`;
+    const uniqueId = `MGR-${crypto.randomInt(100000, 999999)}`;
 
     // 3. Create user via admin API (auto-confirmed, no email sent)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

@@ -218,7 +218,7 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
     const gender = signupGenderEl.value;
     const password = signupPasswordEl.value;
 
-    if (!name || !age || !gender || !email) throw new Error("All fields are required");
+    if (!name || !age || !gender || !email || !password) throw new Error("All fields are required");
 
     // 1. Sign up via server endpoint (bypasses email rate limits)
     const response = await fetch('/api/volunteer/signup', {
