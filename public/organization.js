@@ -19,28 +19,15 @@ const orgCompanyIdDisplayEl = document.getElementById('orgCompanyIdDisplay');
 const orgCodeDisplayEl = document.getElementById('orgCodeDisplay');
 const orgMetaEl = document.getElementById('orgMeta');
 
-function escapeHtml(v) {
-  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 const sheetDateEl = document.getElementById('sheetDate');
 const orgSheetBodyEl = document.getElementById('orgSheetBody');
 const orgDrivesBodyEl = document.getElementById('orgDrivesBody');
 
-const ORG_ID_KEY = 'volopsOrgId';
-const ORG_CODE_KEY = 'volopsOrgCode';
-const ORG_COMPANY_ID_KEY = 'volopsCompanyId';
-const ORG_TOKEN_KEY = 'volopsOrgAuthToken';
-const VOLUNTEER_TOKEN_KEY = 'volopsVolunteerAuthToken';
-const MANAGER_TOKEN_KEY = 'volopsSiteManagerAuthToken';
-
-(function enforceRolePageAccess() {
-  // Allow opening this onboarding page even if another role is logged in.
-  localStorage.getItem(ORG_TOKEN_KEY);
-})();
-
 let activeOrg = null;
-let orgAuthToken = localStorage.getItem(ORG_TOKEN_KEY);
+
+function escapeHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 function setBadge(text, ok = false) {
   orgLoginBadgeEl.textContent = text;
@@ -54,26 +41,15 @@ function setMode(mode) {
   orgSignupFieldsEl.style.display = mode === 'signup' ? 'block' : 'none';
 }
 
-async function authedFetch(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (orgAuthToken) headers.Authorization = `Bearer ${orgAuthToken}`;
-  return fetch(url, { ...options, headers });
-}
-
 function formatDateForInput(date) {
   return new Date(date).toISOString().slice(0, 10);
 }
 
-function applyOrgSession(org, orgCode, authToken) {
+function applyOrgSession(org) {
   activeOrg = org;
-  orgAuthToken = authToken || orgAuthToken;
-  localStorage.setItem(ORG_ID_KEY, org.id);
-  localStorage.setItem(ORG_CODE_KEY, orgCode);
-  localStorage.setItem(ORG_COMPANY_ID_KEY, org.companyId || '');
-  localStorage.setItem(ORG_TOKEN_KEY, orgAuthToken || '');
 
-  orgCompanyIdDisplayEl.textContent = org.companyId || '-';
-  orgCodeDisplayEl.textContent = orgCode || '-';
+  orgCompanyIdDisplayEl.textContent = org.company_id || '-';
+  orgCodeDisplayEl.textContent = org.org_code || '-';
   orgMetaEl.textContent = `${org.name} • ${org.location}`;
   setBadge(`Logged in: ${org.name}`, true);
 
@@ -81,55 +57,81 @@ function applyOrgSession(org, orgCode, authToken) {
   dashboardWrapperEl.style.display = 'block';
 }
 
+async function fetchOrgProfile(userId) {
+  const { data, error } = await supabase.from('organizations').select('*').eq('id', userId).single();
+  if (data) applyOrgSession(data);
+  return data;
+}
+
 function driveStatusLabel(d) {
-  if (d.completedAt) return '<span style="color:#059669">Completed</span>';
+  // Rough estimate logic for now
   const now = Date.now();
-  if (now < new Date(d.startsAt).getTime()) return '<span style="color:#d97706">Upcoming</span>';
-  if (now > new Date(d.endsAt).getTime()) return '<span style="color:#6b7280">Ended</span>';
+  if (now < new Date(d.starts_at).getTime()) return '<span style="color:#d97706">Upcoming</span>';
+  if (now > new Date(d.ends_at).getTime()) return '<span style="color:#6b7280">Ended</span>';
   return '<span style="color:#2563eb">Active</span>';
 }
 
 async function loadDrives() {
-  if (!activeOrg?.id || !orgAuthToken) return;
-  const r = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/drives`);
-  const data = await r.json();
-  if (!r.ok || !orgDrivesBodyEl) return;
-  if (!data.drives || !data.drives.length) {
+  if (!activeOrg?.id) return;
+  const { data: drives, error } = await supabase.from('drives').select('*').eq('org_id', activeOrg.id).order('starts_at', { ascending: false });
+
+  if (error || !orgDrivesBodyEl) return;
+  if (!drives || !drives.length) {
     orgDrivesBodyEl.innerHTML = '<tr><td colspan="6">No drives registered under this organisation.</td></tr>';
     return;
   }
-  orgDrivesBodyEl.innerHTML = data.drives.map((d) => `
+
+  // For simplicity MVP we will omit volunteerCount right now (would require join or rpc)
+  orgDrivesBodyEl.innerHTML = drives.map((d) => `
     <tr>
-      <td>${escapeHtml(d.location)}<br /><span class="small" style="color:#6b7280">${escapeHtml(d.driveCode || '')}</span></td>
-      <td>${escapeHtml(d.managerName)}</td>
-      <td>${new Date(d.startsAt).toLocaleString()}</td>
-      <td>${new Date(d.endsAt).toLocaleString()}</td>
+      <td>${escapeHtml(d.location)}<br /><span class="small" style="color:#6b7280">${escapeHtml(d.drive_code || '')}</span></td>
+      <td>Manager</td>
+      <td>${new Date(d.starts_at).toLocaleString()}</td>
+      <td>${new Date(d.ends_at).toLocaleString()}</td>
       <td>${driveStatusLabel(d)}</td>
-      <td>${d.volunteerCount ?? 0}</td>
+      <td>-</td>
     </tr>
   `).join('');
 }
 
 async function loadSheet() {
-  if (!activeOrg?.id || !orgAuthToken) return;
-  const date = sheetDateEl.value || formatDateForInput(new Date());
-  const r = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/sheet?date=${encodeURIComponent(date)}`);
-  const data = await r.json();
-  if (!r.ok) {
-    orgSheetBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(data.error) || 'Failed to load sheet'}</td></tr>`;
+  if (!activeOrg?.id) return;
+  const dateStr = sheetDateEl.value || formatDateForInput(new Date());
+
+  const startOfDay = new Date(`${dateStr}T00:00:00.000Z`).toISOString();
+  const endOfDay = new Date(`${dateStr}T23:59:59.999Z`).toISOString();
+
+  // We need to fetch sessions belonging to this org's drives
+  // In Supabase we do an inner join
+  const { data: sessions, error } = await supabase
+    .from('sessions')
+    .select(`
+      id, time_in, time_out, hours_devoted,
+      volunteers ( name, age, gender ),
+      drives!inner ( id, location, org_id )
+    `)
+    .eq('drives.org_id', activeOrg.id)
+    .gte('time_in', startOfDay)
+    .lte('time_in', endOfDay)
+    .order('time_in', { ascending: true });
+
+  if (error) {
+    orgSheetBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message) || 'Failed to load sheet'}</td></tr>`;
     return;
   }
-  if (!data.rows.length) {
+
+  if (!sessions || !sessions.length) {
     orgSheetBodyEl.innerHTML = '<tr><td colspan="8">No volunteer entries for this date.</td></tr>';
     return;
   }
-  orgSheetBodyEl.innerHTML = data.rows.map((r0) => `
+
+  orgSheetBodyEl.innerHTML = sessions.map((s) => `
     <tr>
-      <td>${escapeHtml(r0.name)}</td><td>${escapeHtml(String(r0.age))}</td><td>${escapeHtml(r0.gender)}</td><td>${escapeHtml(r0.driveLocation)}</td>
-      <td>${new Date(r0.timeIn).toLocaleString()}</td>
-      <td>${r0.timeOut ? new Date(r0.timeOut).toLocaleString() : '<em>Active</em>'}</td>
-      <td>${escapeHtml(r0.hoursDevoted)}</td>
-      <td><button class="btn-secondary delete-session" data-id="${escapeHtml(r0.sessionId)}" style="font-size:0.8em">Remove</button></td>
+      <td>${escapeHtml(s.volunteers?.name)}</td><td>${escapeHtml(String(s.volunteers?.age || ''))}</td><td>${escapeHtml(s.volunteers?.gender)}</td><td>${escapeHtml(s.drives?.location)}</td>
+      <td>${new Date(s.time_in).toLocaleString()}</td>
+      <td>${s.time_out ? new Date(s.time_out).toLocaleString() : '<em>Active</em>'}</td>
+      <td>${escapeHtml(s.hours_devoted)}</td>
+      <td><button class="btn-secondary delete-session" data-id="${escapeHtml(s.id)}" style="font-size:0.8em">Remove</button></td>
     </tr>
   `).join('');
 
@@ -137,86 +139,95 @@ async function loadSheet() {
     btn.addEventListener('click', async () => {
       if (!confirm('Remove this volunteer session? This cannot be undone.')) return;
       const sid = btn.getAttribute('data-id');
-      const dr = await authedFetch(`/api/orgs/${encodeURIComponent(activeOrg.id)}/sessions/${encodeURIComponent(sid)}`, { method: 'DELETE' });
-      const dd = await dr.json();
-      if (!dr.ok) { alert(dd.error || 'Failed to remove session'); return; }
+      const { error: delError } = await supabase.from('sessions').delete().eq('id', sid);
+      if (delError) { alert(delError.message); return; }
       await loadSheet();
     });
   });
 }
 
 document.getElementById('orgLoginBtn').addEventListener('click', async () => {
-  const r = await fetch('/api/auth/organization/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ companyId: orgLoginCompanyIdEl.value.trim(), password: orgLoginPasswordEl.value })
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    setBadge(data.error || 'Login failed', false);
-    return;
+  try {
+    const companyId = orgLoginCompanyIdEl.value.trim().toUpperCase();
+    const password = orgLoginPasswordEl.value;
+
+    if (!companyId || !password) throw new Error("Company ID and Password are required");
+
+    // 1. Look up the email associated with this company ID (Supabase Auth requires email to sign in)
+    const { data: orgData, error: lookupError } = await supabase.from('organizations').select('contact_email').eq('company_id', companyId).single();
+    if (lookupError || !orgData) throw new Error("Invalid Company ID");
+
+    // 2. Sign in using the located email
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: orgData.contact_email,
+      password: password
+    });
+
+    if (authError) throw authError;
+
+    await fetchOrgProfile(authData.user.id);
+    await loadSheet();
+    await loadDrives();
+  } catch (err) {
+    setBadge(err.message || 'Login failed', false);
   }
-  applyOrgSession(data.organization, data.orgCode, data.authToken);
-  await loadSheet();
-  await loadDrives();
 });
 
 document.getElementById('orgSignupBtn').addEventListener('click', async () => {
-  const r = await fetch('/api/auth/organization/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: orgSignupNameEl.value.trim(),
-      location: orgSignupLocationEl.value.trim(),
-      contactEmail: orgSignupEmailEl.value.trim(),
-      password: orgSignupPasswordEl.value
-    })
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    setBadge(data.error || 'Registration failed', false);
-    return;
+  try {
+    const name = orgSignupNameEl.value.trim();
+    const location = orgSignupLocationEl.value.trim();
+    const email = orgSignupEmailEl.value.trim();
+    const password = orgSignupPasswordEl.value;
+
+    if (!name || !location || !email || !password) throw new Error("All fields are required");
+
+    // 1. Sign up user via Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    if (authError) throw authError;
+
+    const user = authData.user;
+    if (!user) throw new Error("Signup failed");
+
+    // 2. Generate unique identifiers
+    const companyId = `CMP-${Math.floor(100000 + Math.random() * 900000)}`;
+    const orgCode = String(Math.floor(1000000000 + Math.random() * 9000000000)); // 10 digit code
+
+    // 3. Insert specific org settings into the custom table
+    // (Note: Supabase user ids are UUIDs, so we map them 1:1)
+    const { data: org, error: dbError } = await supabase.from('organizations').insert([{
+      id: user.id,
+      name,
+      location,
+      contact_email: email,
+      company_id: companyId,
+      identity_key: 'email:' + email, // legacy support for older queries if needed
+      org_code: orgCode
+    }]).select().single();
+
+    if (dbError) throw dbError;
+
+    applyOrgSession(org);
+    await loadSheet();
+    await loadDrives();
+  } catch (err) {
+    setBadge(err.message || 'Registration failed', false);
   }
-  applyOrgSession(data.organization, data.orgCode, data.authToken);
-  await loadSheet();
-  await loadDrives();
 });
 
 document.getElementById('orgLoadByDateBtn').addEventListener('click', loadSheet);
 
-document.getElementById('orgExportCsvBtn').addEventListener('click', () => {
-  if (!orgAuthToken) return;
-  const a = document.createElement('a');
-  a.href = '/api/reports/export.csv';
-  a.setAttribute('download', '');
-  // Pass auth via query param workaround (fetch-based download with auth header)
-  authedFetch('/api/reports/export.csv').then((r) => r.blob()).then((blob) => {
-    const url = URL.createObjectURL(blob);
-    a.href = url;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
+document.getElementById('orgExportCsvBtn')?.addEventListener('click', () => {
+  alert("Export CSV requires building an exporter function for Supabase Edge Functions or parsing client side. Future update required.");
 });
 
-document.getElementById('orgExportXlsBtn').addEventListener('click', () => {
-  if (!orgAuthToken) return;
-  authedFetch('/api/reports/export.xlsx').then((r) => r.blob()).then((blob) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `volunteer-report-${sheetDateEl.value || 'all'}.xls`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
+document.getElementById('orgExportXlsBtn')?.addEventListener('click', () => {
+  alert("Export XLS requires building an exporter function for Supabase Edge Functions or parsing client side. Future update required.");
 });
 
-document.getElementById('orgLogoutBtn').addEventListener('click', () => {
+async function doLogout() {
+  await supabase.auth.signOut();
   activeOrg = null;
-  orgAuthToken = null;
-  localStorage.removeItem(ORG_ID_KEY);
-  localStorage.removeItem(ORG_CODE_KEY);
-  localStorage.removeItem(ORG_COMPANY_ID_KEY);
-  localStorage.removeItem(ORG_TOKEN_KEY);
   orgCompanyIdDisplayEl.textContent = '-';
   orgCodeDisplayEl.textContent = '-';
   orgMetaEl.textContent = '';
@@ -226,27 +237,39 @@ document.getElementById('orgLogoutBtn').addEventListener('click', () => {
 
   authWrapperEl.style.display = 'block';
   dashboardWrapperEl.style.display = 'none';
-});
+}
 
+document.getElementById('orgLogoutBtn').addEventListener('click', doLogout);
 orgRegisteredYesBtn.addEventListener('click', () => setMode('login'));
 orgRegisteredNoBtn.addEventListener('click', () => setMode('signup'));
 
-(async () => {
+async function initAuth() {
   setMode('login');
   sheetDateEl.value = formatDateForInput(new Date());
 
-  const orgId = localStorage.getItem(ORG_ID_KEY);
-  const orgCode = localStorage.getItem(ORG_CODE_KEY);
-  const companyId = localStorage.getItem(ORG_COMPANY_ID_KEY);
-  if (orgId && orgCode && orgAuthToken) {
-    const r = await authedFetch(`/api/orgs/${encodeURIComponent(orgId)}/sheet?date=${encodeURIComponent(sheetDateEl.value)}`);
-    const data = await r.json();
-    if (r.ok) {
-      applyOrgSession({ ...data.organization, companyId }, orgCode, orgAuthToken);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const org = await fetchOrgProfile(session.user.id);
+    if (org) {
       await loadSheet();
       await loadDrives();
-      return;
+    } else {
+      // A volunteer or site manager must be logged in in this browser session. Let's sign out.
+      await supabase.auth.signOut();
     }
   }
-  setBadge('Not Logged In', false);
-})();
+
+  // Subscribe to auth changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      if (!activeOrg) {
+        const org = await fetchOrgProfile(session.user.id);
+        if (org) { await loadSheet(); await loadDrives(); }
+      }
+    } else if (event === 'SIGNED_OUT') {
+      doLogout();
+    }
+  });
+}
+
+initAuth();

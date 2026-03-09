@@ -7,6 +7,8 @@
   <title>Organization Portal</title>
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-client.js"></script>
 </head>
 
 <body>
@@ -25,7 +27,7 @@
           <h2>Organization Onboarding</h2>
           <span class="stat-chip" id="orgLoginBadge">Not Logged In</span>
         </div>
-        <div class="grid">
+        <div>
           <div>
             <label>Are you registered?</label>
             <div class="actions">
@@ -55,21 +57,21 @@
 
             <div class="actions"><button id="orgLogoutBtn" type="button" class="btn-secondary">Logout</button></div>
           </div>
-
-          <div>
-            <h3>Assigned Credentials</h3>
-            <p class="small">Share company ID and org code with site managers/volunteers as needed.</p>
-            <p class="small"><strong>Company ID:</strong> <span id="orgCompanyIdDisplay">-</span></p>
-            <p class="small"><strong>Organization Code:</strong> <span id="orgCodeDisplay">-</span></p>
-            <p class="small" id="orgMeta"></p>
-          </div>
-        </div>
-    </div>
-    </div>
-    </section>
+      </section>
     </div> <!-- end authWrapper -->
 
     <div id="dashboardWrapper" style="display:none;">
+      <section class="card">
+        <div class="section-head">
+          <h2>Assigned Credentials</h2>
+          <span class="stat-chip">Share with team</span>
+        </div>
+        <p class="small">Share company ID and org code with site managers/volunteers as needed.</p>
+        <p class="small"><strong>Company ID:</strong> <span id="orgCompanyIdDisplay">-</span></p>
+        <p class="small"><strong>Organization Code:</strong> <span id="orgCodeDisplay">-</span></p>
+        <p class="small" id="orgMeta"></p>
+      </section>
+
       <section class="card">
         <div class="section-head">
           <h2>Organization Sheet (Day)</h2>
@@ -127,4 +129,3 @@
 </body>
 
 </html>
-

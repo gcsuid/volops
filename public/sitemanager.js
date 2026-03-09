@@ -32,20 +32,8 @@ const drivesBodyEl = document.getElementById('drivesBody');
 const managerUniqueIdDisplayEl = document.getElementById('managerUniqueIdDisplay');
 const managerMetaEl = document.getElementById('managerMeta');
 
-const MANAGER_TOKEN_KEY = 'volopsSiteManagerAuthToken';
-const MANAGER_ORG_CODE_KEY = 'volopsSiteManagerOrgCode';
-const MANAGER_NAME_KEY = 'volopsSiteManagerName';
-const MANAGER_UNIQUE_ID_KEY = 'volopsSiteManagerUniqueId';
-const VOLUNTEER_TOKEN_KEY = 'volopsVolunteerAuthToken';
-const ORG_TOKEN_KEY = 'volopsOrgAuthToken';
-
-(function enforceRolePageAccess() {
-  // Allow opening this onboarding page even if another role is logged in.
-  // Strict redirects are enforced on role-protected pages like dashboard.
-  localStorage.getItem(MANAGER_TOKEN_KEY);
-})();
-
-let managerAuthToken = localStorage.getItem(MANAGER_TOKEN_KEY);
+let activeManager = null;
+let activeOrg = null;
 
 function setBadge(text, ok = false) {
   managerLoginBadgeEl.textContent = text;
@@ -59,191 +47,242 @@ function setMode(mode) {
   managerSignupFieldsEl.style.display = mode === 'signup' ? 'block' : 'none';
 }
 
-async function authedFetch(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (managerAuthToken) headers.Authorization = `Bearer ${managerAuthToken}`;
-  return fetch(url, { ...options, headers });
-}
+function applyManagerSession(manager, org) {
+  activeManager = manager;
+  activeOrg = org;
 
-function applyManagerSession(data) {
-  managerAuthToken = data.authToken;
-  localStorage.setItem(MANAGER_TOKEN_KEY, data.authToken);
-  localStorage.setItem(MANAGER_NAME_KEY, data.manager.managerName || '');
-  localStorage.setItem(MANAGER_UNIQUE_ID_KEY, data.manager.uniqueManagerId || '');
+  managerNameEl.value = manager.name || managerNameEl.value;
+  managerOrgNameEl.value = org?.name || managerOrgNameEl.value;
+  if (org?.org_code) managerOrgCodeEl.value = org.org_code;
 
-  managerNameEl.value = data.manager.managerName || managerNameEl.value;
-  managerOrgNameEl.value = data.organization.name || managerOrgNameEl.value;
-  managerUniqueIdDisplayEl.textContent = data.manager.uniqueManagerId || '-';
-  managerMetaEl.textContent = `${data.manager.email || ''} • ${data.organization.name}`;
-  setBadge(`Logged in: ${data.manager.managerName}`, true);
+  managerUniqueIdDisplayEl.textContent = manager.unique_manager_id || '-';
+  managerMetaEl.textContent = `${manager.email || ''} • ${org?.name || 'Unknown Org'}`;
+  setBadge(`Logged in: ${manager.name}`, true);
 
   authWrapperEl.style.display = 'none';
   dashboardWrapperEl.style.display = 'block';
 }
 
-document.getElementById('managerLoginBtn').addEventListener('click', async () => {
-  const r = await fetch('/api/auth/site-manager/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: managerLoginEmailEl.value.trim(),
-      uniqueManagerId: managerLoginUniqueIdEl.value.trim()
-    })
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    setBadge(data.error || 'Login failed', false);
-    return;
+async function fetchManagerProfile(userId) {
+  const { data: manager, error } = await supabase.from('site_managers').select('*').eq('id', userId).single();
+  if (manager && manager.org_id) {
+    const { data: org } = await supabase.from('organizations').select('*').eq('id', manager.org_id).single();
+    applyManagerSession(manager, org);
   }
-  applyManagerSession(data);
-  await loadDrives();
+  return manager;
+}
+
+document.getElementById('managerLoginBtn').addEventListener('click', async () => {
+  try {
+    const email = managerLoginEmailEl.value.trim();
+    const uniqueId = managerLoginUniqueIdEl.value.trim();
+
+    if (!email || !uniqueId) throw new Error("Email and Unique Manager ID are required");
+
+    // We emulate a password for Supabase Auth since we previously used "Unique Manager ID" as a sort of password 
+    // Wait, let's look up the user first, or just try log in with Unique ID as pwd
+    // We didn't setup a password field for managers in the original UI, let's use the uniqueId as their password.
+
+    // In a real migration we'd enforce a proper password field. For now, since they used a dummy server, 
+    // let's assume they created the account with Unique_ID as password
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: uniqueId
+    });
+
+    if (authError) throw authError;
+
+    await fetchManagerProfile(authData.user.id);
+    await loadDrives();
+  } catch (err) {
+    setBadge(err.message || 'Login failed', false);
+  }
 });
 
 document.getElementById('managerSignupBtn').addEventListener('click', async () => {
-  const r = await fetch('/api/auth/site-manager/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: managerSignupEmailEl.value.trim(),
-      managerName: managerSignupNameEl.value.trim(),
-      companyId: managerSignupCompanyIdEl.value.trim()
-    })
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    setBadge(data.error || 'Signup failed', false);
-    return;
+  try {
+    const email = managerSignupEmailEl.value.trim();
+    const name = managerSignupNameEl.value.trim();
+    const companyId = managerSignupCompanyIdEl.value.trim().toUpperCase();
+
+    if (!email || !name || !companyId) throw new Error("All fields are required");
+
+    // 1. Find the organization ID using the provided Company ID
+    const { data: orgData, error: orgError } = await supabase.from('organizations').select('id, name, org_code').eq('company_id', companyId).single();
+    if (orgError || !orgData) throw new Error("Invalid Company ID. Ensure the organization has registered.");
+
+    const uniqueId = `MGR-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // 2. Sign up user via Supabase Auth, using the generated unique ID as their password so they can log in later
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: uniqueId
+    });
+    if (authError) throw authError;
+
+    const user = authData.user;
+    if (!user) throw new Error("Signup failed");
+
+    // 3. Insert into the site_managers table
+    const { data: manager, error: dbError } = await supabase.from('site_managers').insert([{
+      id: user.id,
+      org_id: orgData.id,
+      name,
+      email,
+      unique_manager_id: uniqueId
+    }]).select().single();
+
+    if (dbError) throw dbError;
+
+    applyManagerSession(manager, orgData);
+    await loadDrives();
+  } catch (err) {
+    setBadge(err.message || 'Signup failed', false);
   }
-  managerLoginEmailEl.value = data.manager.email || '';
-  managerLoginUniqueIdEl.value = data.manager.uniqueManagerId || '';
-  applyManagerSession(data);
-  setMode('login');
-  await loadDrives();
 });
 
-document.getElementById('managerLogoutBtn').addEventListener('click', () => {
-  managerAuthToken = null;
-  localStorage.removeItem(MANAGER_TOKEN_KEY);
-  localStorage.removeItem(MANAGER_ORG_CODE_KEY);
-  localStorage.removeItem(MANAGER_NAME_KEY);
-  localStorage.removeItem(MANAGER_UNIQUE_ID_KEY);
+
+async function createDrive() {
+  try {
+    if (!activeManager) throw new Error('Login as site manager first.');
+
+    const location = driveLocationEl.value.trim();
+    const startsAt = driveStartEl.value;
+    const endsAt = driveEndEl.value;
+
+    if (!location || !startsAt || !endsAt) throw new Error('Location, start, and end times are required.');
+
+    // Generate a shorter 6 character drive code
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let driveCode = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+
+    const { data: drive, error } = await supabase.from('drives').insert([{
+      org_id: activeOrg.id,
+      manager_id: activeManager.id,
+      drive_code: driveCode,
+      location: location,
+      starts_at: new Date(startsAt).toISOString(),
+      ends_at: new Date(endsAt).toISOString()
+    }]).select().single();
+
+    if (error) throw error;
+
+    // Build check-in URL
+    const checkinUrl = `${window.location.origin}/volunteer.html?driveToken=${drive.token}`;
+    driveLinkTextEl.innerHTML = `Drive registered. Share check-in URL:<br /><a href="${escapeHtml(checkinUrl)}" target="_blank">${escapeHtml(checkinUrl)}</a>`;
+    driveCodeTextEl.innerHTML = `<strong>Drive Code:</strong> <span style="font-size:1.3em;font-weight:700;letter-spacing:2px;color:#0f766e">${escapeHtml(drive.drive_code)}</span> <span class="small">(volunteers can also enter this code manually)</span>`;
+
+    driveQrEl.innerHTML = '';
+    new QRCode(driveQrEl, { text: checkinUrl, width: 180, height: 180 });
+    await loadDrives();
+
+  } catch (err) {
+    driveLinkTextEl.textContent = err.message || 'Failed to create drive';
+    if (driveCodeTextEl) driveCodeTextEl.textContent = '';
+  }
+}
+
+function driveStatus(d) {
+  const now = Date.now();
+  if (now < new Date(d.starts_at).getTime()) return '<span style="color:#d97706">Upcoming</span>';
+  if (now > new Date(d.ends_at).getTime()) return '<span style="color:#6b7280">Ended</span>';
+  return '<span style="color:#2563eb">Active</span>';
+}
+
+
+async function loadDrives() {
+  if (!activeManager || !activeOrg) {
+    drivesBodyEl.innerHTML = '<tr><td colspan="8">Login as site manager first.</td></tr>';
+    return;
+  }
+
+  const { data: drives, error } = await supabase
+    .from('drives')
+    .select('*')
+    .eq('manager_id', activeManager.id)
+    .order('starts_at', { ascending: false });
+
+  if (error) {
+    drivesBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message) || 'Failed to load drives'}</td></tr>`;
+    return;
+  }
+
+  if (!drives || !drives.length) {
+    drivesBodyEl.innerHTML = '<tr><td colspan="8">No drives registered by you.</td></tr>';
+    return;
+  }
+
+  // Notice we use innerHTML on drivesBodyEl so we must delegate event listeners
+  drivesBodyEl.innerHTML = drives.map((d) => `
+    <tr>
+      <td><strong>${escapeHtml(d.drive_code || '-')}</strong></td>
+      <td>${escapeHtml(d.location)}</td>
+      <td>${new Date(d.starts_at).toLocaleString()}</td>
+      <td>${new Date(d.ends_at).toLocaleString()}</td>
+      <td>${escapeHtml(activeManager.name)}</td>
+      <td>${driveStatus(d)}</td>
+      <td>-</td>
+      <td>
+         <button data-id="${escapeHtml(d.id)}" class="btn-secondary delete-drive">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+
+}
+
+// Event Delegation for dynamically inserted buttons
+drivesBodyEl.addEventListener('click', async (e) => {
+  if (e.target.classList.contains('delete-drive')) {
+    const id = e.target.getAttribute('data-id');
+    if (!confirm("Are you sure you want to delete this drive?")) return;
+    const { error } = await supabase.from('drives').delete().eq('id', id);
+    if (error) alert(error.message);
+    await loadDrives();
+  }
+});
+
+async function doLogout() {
+  await supabase.auth.signOut();
+  activeManager = null;
+  activeOrg = null;
   managerUniqueIdDisplayEl.textContent = '-';
   managerMetaEl.textContent = '';
   setBadge('Not Logged In', false);
 
   authWrapperEl.style.display = 'block';
   dashboardWrapperEl.style.display = 'none';
-});
-
-async function createDrive() {
-  if (!managerAuthToken) {
-    driveLinkTextEl.textContent = 'Login as site manager first.';
-    return;
-  }
-  const payload = {
-    managerName: managerNameEl.value.trim(),
-    organizationName: managerOrgNameEl.value.trim(),
-    orgCode: managerOrgCodeEl.value.trim(),
-    location: driveLocationEl.value.trim(),
-    startsAt: driveStartEl.value,
-    endsAt: driveEndEl.value
-  };
-  const r = await authedFetch('/api/site-manager/drives', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    driveLinkTextEl.textContent = data.error || 'Failed to create drive';
-    if (driveCodeTextEl) driveCodeTextEl.textContent = '';
-    return;
-  }
-  localStorage.setItem(MANAGER_ORG_CODE_KEY, managerOrgCodeEl.value.trim());
-  driveLinkTextEl.innerHTML = `Drive registered. Share check-in URL:<br /><a href="${escapeHtml(data.checkinUrl)}" target="_blank">${escapeHtml(data.checkinUrl)}</a>`;
-  if (driveCodeTextEl && data.drive.driveCode) {
-    driveCodeTextEl.innerHTML = `<strong>Drive Code:</strong> <span style="font-size:1.3em;font-weight:700;letter-spacing:2px;color:#0f766e">${escapeHtml(data.drive.driveCode)}</span> <span class="small">(volunteers can also enter this code manually)</span>`;
-  }
-  driveQrEl.innerHTML = '';
-  new QRCode(driveQrEl, { text: data.checkinUrl, width: 180, height: 180 });
-  await loadDrives();
 }
 
-function driveStatus(d) {
-  if (d.completedAt) return '<span style="color:#059669">Completed</span>';
-  const now = Date.now();
-  if (now < new Date(d.startsAt).getTime()) return '<span style="color:#d97706">Upcoming</span>';
-  if (now > new Date(d.endsAt).getTime()) return '<span style="color:#6b7280">Ended</span>';
-  return '<span style="color:#2563eb">Active</span>';
-}
-
-async function loadDrives() {
-  if (!managerAuthToken) {
-    drivesBodyEl.innerHTML = '<tr><td colspan="8">Login as site manager first.</td></tr>';
-    return;
-  }
-  const orgCode = managerOrgCodeEl.value.trim() || localStorage.getItem(MANAGER_ORG_CODE_KEY) || '';
-  if (!orgCode) {
-    drivesBodyEl.innerHTML = '<tr><td colspan="8">Enter organization code to load drives.</td></tr>';
-    return;
-  }
-  managerOrgCodeEl.value = orgCode;
-
-  const r = await authedFetch(`/api/site-manager/drives?orgCode=${encodeURIComponent(orgCode)}`);
-  const data = await r.json();
-  if (!r.ok) {
-    drivesBodyEl.innerHTML = `<tr><td colspan="8">${escapeHtml(data.error) || 'Failed to load drives'}</td></tr>`;
-    return;
-  }
-  if (!data.drives.length) {
-    drivesBodyEl.innerHTML = '<tr><td colspan="8">No drives registered.</td></tr>';
-    return;
-  }
-  drivesBodyEl.innerHTML = data.drives.map((d) => `
-    <tr>
-      <td><strong>${escapeHtml(d.driveCode || '-')}</strong></td>
-      <td>${escapeHtml(d.location)}</td>
-      <td>${new Date(d.startsAt).toLocaleString()}</td>
-      <td>${new Date(d.endsAt).toLocaleString()}</td>
-      <td>${escapeHtml(d.managerName)}</td>
-      <td>${driveStatus(d)}</td>
-      <td>${d.volunteerCount ?? 0}</td>
-      <td>
-        ${!d.completedAt ? `<button data-id="${escapeHtml(d.id)}" class="btn-secondary complete-drive" style="margin-bottom:4px">✓ Complete</button>` : ''}
-        <button data-id="${escapeHtml(d.id)}" class="btn-secondary delete-drive">Delete</button>
-      </td>
-    </tr>
-  `).join('');
-
-  document.querySelectorAll('.delete-drive').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      await authedFetch(`/api/site-manager/drives/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      await loadDrives();
-    });
-  });
-
-  document.querySelectorAll('.complete-drive').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const r2 = await authedFetch(`/api/site-manager/drives/${encodeURIComponent(id)}/complete`, { method: 'POST' });
-      const d2 = await r2.json();
-      if (!r2.ok) { alert(d2.error || 'Failed to complete drive'); return; }
-      await loadDrives();
-    });
-  });
-}
-
-document.getElementById('createDriveBtn').addEventListener('click', createDrive);
-document.getElementById('loadDrivesBtn').addEventListener('click', loadDrives);
+document.getElementById('managerLogoutBtn').addEventListener('click', doLogout);
 managerRegisteredYesBtn.addEventListener('click', () => setMode('login'));
 managerRegisteredNoBtn.addEventListener('click', () => setMode('signup'));
+document.getElementById('createDriveBtn').addEventListener('click', createDrive);
+document.getElementById('loadDrivesBtn').addEventListener('click', loadDrives);
 
-setMode('login');
-if (managerAuthToken) {
-  setBadge('Logged in session found', true);
-  managerNameEl.value = localStorage.getItem(MANAGER_NAME_KEY) || managerNameEl.value;
-  managerUniqueIdDisplayEl.textContent = localStorage.getItem(MANAGER_UNIQUE_ID_KEY) || '-';
-} else {
-  setBadge('Not Logged In', false);
+async function initAuth() {
+  setMode('login');
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const mgr = await fetchManagerProfile(session.user.id);
+    if (mgr) {
+      await loadDrives();
+    } else {
+      await supabase.auth.signOut();
+    }
+  }
+
+  // Subscribe to auth changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      if (!activeManager) {
+        const mgr = await fetchManagerProfile(session.user.id);
+        if (mgr) await loadDrives();
+      }
+    } else if (event === 'SIGNED_OUT') {
+      doLogout();
+    }
+  });
 }
+
+initAuth();

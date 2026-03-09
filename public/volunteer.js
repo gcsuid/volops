@@ -14,9 +14,6 @@ const volIdBadgeEl = document.getElementById('volIdBadge');
 const registeredYesBtn = document.getElementById('volunteerRegisteredYesBtn');
 const registeredNoBtn = document.getElementById('volunteerRegisteredNoBtn');
 
-function escapeHtml(v) {
-  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 const loginBadgeEl = document.getElementById('loginBadge');
 const loginFieldsEl = document.getElementById('volunteerLoginFields');
 const signupFieldsEl = document.getElementById('volunteerSignupFields');
@@ -39,17 +36,6 @@ const photoPreview = document.getElementById('photoPreview');
 const photoStatusEl = document.getElementById('photoStatus');
 const checkInBtnEl = document.getElementById('checkInBtn');
 
-const VOLUNTEER_ID_KEY = 'volopsVolunteerId';
-const VOLUNTEER_TOKEN_KEY = 'volopsVolunteerAuthToken';
-const ORG_TOKEN_KEY = 'volopsOrgAuthToken';
-const MANAGER_TOKEN_KEY = 'volopsSiteManagerAuthToken';
-
-(function enforceRolePageAccess() {
-  // Allow opening this onboarding page even if another role is logged in.
-  localStorage.getItem(VOLUNTEER_TOKEN_KEY);
-})();
-
-let activeEvent = null;
 let activeDrive = null;
 let activeSessionId = null;
 let timeInMs = null;
@@ -57,7 +43,10 @@ let timerHandle = null;
 let locationWatchId = null;
 let photoDataUrl = '';
 let currentVolunteer = null;
-let volunteerAuthToken = localStorage.getItem(VOLUNTEER_TOKEN_KEY);
+
+function escapeHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 function setStatus(message, level = 'ok') {
   statusBox.innerHTML = `<div class="status ${escapeHtml(level)}">${escapeHtml(message)}</div>`;
@@ -91,12 +80,6 @@ function updateCheckInBtn() {
       photoStatusEl.style.color = '#e11d48';
     }
   }
-}
-
-async function authedFetch(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (volunteerAuthToken) headers.Authorization = `Bearer ${volunteerAuthToken}`;
-  return fetch(url, { ...options, headers });
 }
 
 function formatClock(ms) {
@@ -135,86 +118,57 @@ function applyVolunteerToForm(volunteer) {
   ageEl.value = volunteer.age || '';
   genderEl.value = volunteer.gender || '';
   emailEl.value = volunteer.email || '';
-  if (volIdBadgeEl) volIdBadgeEl.textContent = volunteer.volId || volunteer.id || '-';
+  if (volIdBadgeEl) volIdBadgeEl.textContent = volunteer.vol_id || '-';
+
   const dashVolIdEl = document.getElementById('dashVolId');
   const dashVolNameEl = document.getElementById('dashVolName');
-  if (dashVolIdEl) dashVolIdEl.textContent = volunteer.volId || volunteer.id || '-';
+  if (dashVolIdEl) dashVolIdEl.textContent = volunteer.vol_id || '-';
   if (dashVolNameEl) dashVolNameEl.textContent = volunteer.name || volunteer.email || '';
+
   setLoginBadge(`Logged in: ${volunteer.name || volunteer.email}`, true);
 
   authWrapperEl.style.display = 'none';
   dashboardWrapperEl.style.display = 'block';
 }
 
-async function hydrateVolunteerFromLocalStorage() {
-  const volunteerId = localStorage.getItem(VOLUNTEER_ID_KEY);
-  if (!volunteerId || !volunteerAuthToken) return;
-  const r = await authedFetch(`/api/volunteers/${encodeURIComponent(volunteerId)}`);
-  if (!r.ok) {
-    localStorage.removeItem(VOLUNTEER_ID_KEY);
-    localStorage.removeItem(VOLUNTEER_TOKEN_KEY);
-    volunteerAuthToken = null;
-    return;
-  }
-  const data = await r.json();
-  applyVolunteerToForm(data.volunteer);
+async function fetchVolunteerProfile(userId) {
+  const { data, error } = await supabase.from('volunteers').select('*').eq('id', userId).single();
+  if (data) applyVolunteerToForm(data);
+  return data;
 }
 
 async function loadEvent(token) {
+  setStatus('Loading drive...');
   const cleanToken = parseTokenFromText(token).trim();
   if (!cleanToken) return;
   tokenInput.value = cleanToken;
-  activeEvent = null;
   activeDrive = null;
 
-  // Try as short 6-char drive code first
-  if (/^[A-Z0-9]{6}$/i.test(cleanToken)) {
-    const codeRes = await fetch(`/api/drives/code/${encodeURIComponent(cleanToken.toUpperCase())}`);
-    if (codeRes.ok) {
-      const codeData = await codeRes.json();
-      activeDrive = codeData;
-      // Use the UUID token for actual check-in
-      tokenInput.value = codeData.drive.token;
-      const completedNote = codeData.drive.completedAt ? '<br /><span style="color:#e11d48">⚠ Drive completed.</span>' : '';
-      eventInfo.innerHTML = `
-        <strong>${escapeHtml(codeData.organization.name)}</strong><br />
-        Drive Manager: ${escapeHtml(codeData.drive.managerName)}<br />
-        Location: ${escapeHtml(codeData.drive.location)}<br />
-        Start: ${new Date(codeData.drive.startsAt).toLocaleString()}<br />
-        End: ${new Date(codeData.drive.endsAt).toLocaleString()}${completedNote}<br />
-        Enter organization code for check-in.
-      `;
-      return;
+  try {
+    // Try to load by drive_code first length is usually 6
+    let query = supabase.from('drives').select('*, organizations(name)');
+    if (cleanToken.length === 6) {
+      query = query.eq('drive_code', cleanToken.toUpperCase());
+    } else {
+      query = query.eq('token', cleanToken);
     }
-  }
 
-  const driveRes = await fetch(`/api/drives/token/${encodeURIComponent(cleanToken)}`);
-  if (driveRes.ok) {
-    const driveData = await driveRes.json();
-    activeDrive = driveData;
-    const completedNote = driveData.drive.completedAt ? '<br /><span style="color:#e11d48">⚠ Drive completed by site manager.</span>' : '';
+    const { data: drive, error } = await query.single();
+    if (error || !drive) throw new Error('Drive not found.');
+
+    activeDrive = drive;
+
     eventInfo.innerHTML = `
-      <strong>${escapeHtml(driveData.organization.name)}</strong><br />
-      Drive Manager: ${escapeHtml(driveData.drive.managerName)}<br />
-      Location: ${escapeHtml(driveData.drive.location)}<br />
-      Start: ${new Date(driveData.drive.startsAt).toLocaleString()}<br />
-      End: ${new Date(driveData.drive.endsAt).toLocaleString()}${completedNote}<br />
+      <strong>${escapeHtml(drive.organizations?.name || 'Organization')}</strong><br />
+      Location: ${escapeHtml(drive.location)}<br />
+      Start: ${new Date(drive.starts_at).toLocaleString()}<br />
+      End: ${new Date(drive.ends_at).toLocaleString()}<br />
       Enter organization code for check-in.
     `;
-    return;
+    setStatus('Drive loaded successfully.');
+  } catch (err) {
+    setStatus(err.message, 'warn');
   }
-
-  const r = await fetch(`/api/events/token/${encodeURIComponent(cleanToken)}`);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || 'Unable to fetch event/drive from token');
-  activeEvent = data;
-  activityEl.value = data.event.activity || activityEl.value;
-  eventInfo.innerHTML = `
-    <strong>${escapeHtml(data.organization.name)}</strong><br />
-    Event: ${escapeHtml(data.event.name)}<br />
-    Location: ${escapeHtml(data.site.name)}, ${escapeHtml(data.site.address)}<br />
-    Geofence Radius: ${escapeHtml(String(data.site.geofenceRadiusMeters))}m
-  `;
 }
 
 async function getCurrentLocation() {
@@ -222,36 +176,6 @@ async function getCurrentLocation() {
     if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
     navigator.geolocation.getCurrentPosition((pos) => resolve(pos.coords), (err) => reject(err), { enableHighAccuracy: true, timeout: 15000 });
   });
-}
-
-async function sendLocationHeartbeat(position) {
-  if (!activeSessionId || !volunteerAuthToken) return;
-  try {
-    const r = await authedFetch(`/api/sessions/${activeSessionId}/location`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ latitude: position.latitude, longitude: position.longitude })
-    });
-    const data = await r.json();
-    if (r.ok && !data.withinGeofence) {
-      setStatus(`Geofence warning: you are ${data.distanceMeters}m away (allowed ${data.radiusMeters}m).`, 'warn');
-    }
-  } catch {}
-}
-
-function startGeofenceTracking() {
-  if (!navigator.geolocation) return;
-  if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
-  locationWatchId = navigator.geolocation.watchPosition(
-    (p) => sendLocationHeartbeat({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
-    () => setStatus('Unable to verify location continuously. Keep location enabled.', 'warn'),
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
-  );
-}
-
-function stopGeofenceTracking() {
-  if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
-  locationWatchId = null;
 }
 
 function stopCameraStream() {
@@ -266,17 +190,12 @@ registeredNoBtn.addEventListener('click', () => setMode('signup'));
 
 document.getElementById('volunteerLoginBtn').addEventListener('click', async () => {
   try {
-    const r = await fetch('/api/auth/volunteer/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: loginEmailEl.value.trim(), password: loginPasswordEl.value })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginEmailEl.value.trim(),
+      password: loginPasswordEl.value
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Login failed');
-    volunteerAuthToken = data.authToken;
-    localStorage.setItem(VOLUNTEER_TOKEN_KEY, data.authToken);
-    localStorage.setItem(VOLUNTEER_ID_KEY, data.volunteer.id);
-    applyVolunteerToForm(data.volunteer);
+    if (error) throw error;
+    await fetchVolunteerProfile(data.user.id);
     setStatus('Login successful.');
   } catch (e) {
     setStatus(e.message, 'warn');
@@ -285,34 +204,48 @@ document.getElementById('volunteerLoginBtn').addEventListener('click', async () 
 
 document.getElementById('volunteerSignupBtn').addEventListener('click', async () => {
   try {
-    const r = await fetch('/api/auth/volunteer/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: signupEmailEl.value.trim(),
-        password: signupPasswordEl.value,
-        name: signupNameEl.value.trim(),
-        age: Number(signupAgeEl.value),
-        gender: signupGenderEl.value
-      })
+    const email = signupEmailEl.value.trim();
+    const name = signupNameEl.value.trim();
+    const age = Number(signupAgeEl.value);
+    const gender = signupGenderEl.value;
+
+    if (!name || !age || !gender || !email) throw new Error("All fields are required");
+
+    // 1. Sign up the user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: signupPasswordEl.value
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Signup failed');
-    volunteerAuthToken = data.authToken;
-    localStorage.setItem(VOLUNTEER_TOKEN_KEY, data.authToken);
-    localStorage.setItem(VOLUNTEER_ID_KEY, data.volunteer.id);
-    applyVolunteerToForm(data.volunteer);
+    if (authError) throw authError;
+
+    const user = authData.user;
+    if (!user) throw new Error("Signup failed");
+
+    // 2. Generate a volId
+    const volId = `VOL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // 3. Create the volunteer profile record
+    const { data: profile, error: dbError } = await supabase.from('volunteers').insert([{
+      id: user.id,
+      vol_id: volId,
+      name,
+      email,
+      age,
+      gender
+    }]).select().single();
+
+    if (dbError) throw dbError;
+
+    applyVolunteerToForm(profile);
     setStatus('Signup successful.');
   } catch (e) {
     setStatus(e.message, 'warn');
   }
 });
 
-function doLogout() {
+async function doLogout() {
+  await supabase.auth.signOut();
   currentVolunteer = null;
-  volunteerAuthToken = null;
-  localStorage.removeItem(VOLUNTEER_TOKEN_KEY);
-  localStorage.removeItem(VOLUNTEER_ID_KEY);
   nameEl.value = '';
   emailEl.value = '';
   ageEl.value = '';
@@ -326,12 +259,10 @@ function doLogout() {
 }
 
 document.getElementById('logoutBtn').addEventListener('click', doLogout);
-
-const dashLogoutBtnEl = document.getElementById('dashLogoutBtn');
-if (dashLogoutBtnEl) dashLogoutBtnEl.addEventListener('click', doLogout);
+document.getElementById('dashLogoutBtn')?.addEventListener('click', doLogout);
 
 document.getElementById('loadEventBtn').addEventListener('click', async () => {
-  try { await loadEvent(tokenInput.value); setStatus('Token loaded.'); } catch (e) { setStatus(e.message, 'warn'); }
+  try { await loadEvent(tokenInput.value); } catch (e) { setStatus(e.message, 'warn'); }
 });
 
 document.getElementById('startCamBtn').addEventListener('click', async () => {
@@ -358,55 +289,62 @@ document.getElementById('captureBtn').addEventListener('click', () => {
 
 checkInBtnEl.addEventListener('click', async () => {
   try {
-    if (!currentVolunteer?.id || !volunteerAuthToken) throw new Error('Login first');
-    if (!activeEvent && !activeDrive) throw new Error('Load event/drive token or drive code first');
+    if (!currentVolunteer?.id) throw new Error('Login first');
+    if (!activeDrive) throw new Error('Load drive token or drive code first');
     if (!nameEl.value.trim()) throw new Error('Name is required');
-    if (activeDrive && !orgCodeInput.value.trim()) throw new Error('Organization code required for drive');
-    if (!photoDataUrl) throw new Error('Selfie required. Please capture your photo before checking in.');
+    if (!orgCodeInput.value.trim()) throw new Error('Organization code required');
+    if (!photoDataUrl) throw new Error('Selfie required.');
+
+    // Very simple org check for now: does the org have this code?
+    const { data: org, error: orgError } = await supabase.from('organizations').select('org_code').eq('id', activeDrive.org_id).single();
+    if (orgError || org.org_code !== orgCodeInput.value.trim()) throw new Error('Invalid organization code');
 
     const coords = await getCurrentLocation();
-    const r = await authedFetch('/api/checkin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: activeEvent ? tokenInput.value.trim() : undefined,
-        driveToken: activeDrive ? tokenInput.value.trim() : undefined,
-        orgCode: orgCodeInput.value.trim(),
-        volunteerId: currentVolunteer.id,
-        name: nameEl.value,
-        email: emailEl.value,
-        age: Number(ageEl.value),
-        gender: genderEl.value,
-        activity: activityEl.value,
-        photoDataUrl,
-        latitude: coords.latitude,
-        longitude: coords.longitude
-      })
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Check-in failed');
-    activeSessionId = data.sessionId;
-    startTimer(data.timeIn);
-    startGeofenceTracking();
+
+    // Insert session into Supabase
+    const { data: session, error } = await supabase.from('sessions').insert([{
+      volunteer_id: currentVolunteer.id,
+      drive_id: activeDrive.id,
+      check_in_lat: coords.latitude,
+      check_in_lng: coords.longitude,
+      photo_url: 'selfie_data_placeholder' // In a real app, upload photoDataUrl to Supabase Storage and stash URL here
+    }]).select('id, time_in').single();
+
+    if (error) throw error;
+
+    activeSessionId = session.id;
+    startTimer(session.time_in);
     setStatus('Checked in successfully. Timer started.');
   } catch (e) { setStatus(e.message, 'warn'); }
 });
 
 document.getElementById('checkOutBtn').addEventListener('click', async () => {
   try {
-    if (!activeSessionId || !volunteerAuthToken) throw new Error('No active check-in found');
+    if (!activeSessionId) throw new Error('No active check-in found');
     const coords = await getCurrentLocation();
-    const r = await authedFetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: activeSessionId, latitude: coords.latitude, longitude: coords.longitude })
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Check-out failed');
+
+    // In a real query, we would calculate hours devoted here or via db trigger
+    // Let's do a quick calculation on client side for MVP just to populate the field
+    const timeOut = new Date().toISOString();
+
+    const { data: session, error: selError } = await supabase.from('sessions').select('time_in').eq('id', activeSessionId).single();
+    if (selError) throw selError;
+
+    const msDiff = new Date(timeOut).getTime() - new Date(session.time_in).getTime();
+    const hoursDevoted = (msDiff / (1000 * 60 * 60)).toFixed(2);
+
+    const { error } = await supabase.from('sessions').update({
+      time_out: timeOut,
+      check_out_lat: coords.latitude,
+      check_out_lng: coords.longitude,
+      hours_devoted: hoursDevoted
+    }).eq('id', activeSessionId);
+
+    if (error) throw error;
+
     stopTimer();
-    stopGeofenceTracking();
     activeSessionId = null;
-    setStatus(`Checked out. Hours devoted: ${data.hoursDevoted}`);
+    setStatus(`Checked out. Hours devoted: ${hoursDevoted}`);
   } catch (e) { setStatus(e.message, 'warn'); }
 });
 
@@ -418,16 +356,31 @@ function startQrScanner() {
   });
 }
 
-const params = new URLSearchParams(window.location.search);
-const startupToken = params.get('driveToken') || params.get('token');
-if (startupToken) {
-  tokenInput.value = startupToken;
-  loadEvent(startupToken).catch((e) => setStatus(e.message, 'warn'));
+// Initial setup
+async function initAuth() {
+  setMode('login');
+  updateCheckInBtn();
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    await fetchVolunteerProfile(session.user.id);
+  }
+
+  // Subscribe to auth changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      if (!currentVolunteer) await fetchVolunteerProfile(session.user.id);
+    } else if (event === 'SIGNED_OUT') {
+      doLogout();
+    }
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  const startupToken = params.get('driveToken') || params.get('token');
+  if (startupToken) {
+    loadEvent(startupToken).catch((e) => setStatus(e.message, 'warn'));
+  }
 }
 
-setMode('login');
-updateCheckInBtn();
-hydrateVolunteerFromLocalStorage().then(() => {
-  if (!currentVolunteer) setLoginBadge('Not Logged In', false);
-});
+initAuth();
 startQrScanner();

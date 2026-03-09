@@ -7,6 +7,8 @@
   <title>Volunteer Check-In</title>
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-client.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 
@@ -26,51 +28,59 @@
           <h2>Step 0: Volunteer Onboarding</h2>
           <span class="stat-chip" id="loginBadge">Not Logged In</span>
         </div>
-        <div class="grid">
-          <div>
-            <label>Are you registered?</label>
+        <div>
+          <label>Are you registered?</label>
+          <div class="actions">
+            <button id="volunteerRegisteredYesBtn" type="button">Yes</button>
+            <button id="volunteerRegisteredNoBtn" type="button" class="btn-secondary">No</button>
+          </div>
+
+          <div id="volunteerLoginFields">
+            <label>Email</label>
+            <input id="loginEmail" type="email" placeholder="you@example.com" />
+            <label>Password</label>
+            <input id="loginPassword" type="password" placeholder="Enter password" />
             <div class="actions">
-              <button id="volunteerRegisteredYesBtn" type="button">Yes</button>
-              <button id="volunteerRegisteredNoBtn" type="button" class="btn-secondary">No</button>
-            </div>
-
-            <div id="volunteerLoginFields">
-              <label>Email</label>
-              <input id="loginEmail" type="email" placeholder="you@example.com" />
-              <label>Password</label>
-              <input id="loginPassword" type="password" placeholder="Enter password" />
-              <div class="actions">
-                <button id="volunteerLoginBtn" type="button">Login</button>
-              </div>
-            </div>
-
-            <div id="volunteerSignupFields" style="display:none;">
-              <label>Name</label>
-              <input id="signupName" placeholder="Your full name" />
-              <label>Age</label>
-              <input id="signupAge" type="number" min="1" max="120" />
-              <label>Gender</label>
-              <select id="signupGender">
-                <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Non-Binary">Non-Binary</option>
-                <option value="Prefer not to say">Prefer not to say</option>
-              </select>
-              <label>Email</label>
-              <input id="signupEmail" type="email" placeholder="you@example.com" />
-              <label>Password</label>
-              <input id="signupPassword" type="password" placeholder="Create password" />
-              <div class="actions">
-                <button id="volunteerSignupBtn" type="button">Sign Up</button>
-              </div>
-            </div>
-
-            <div class="actions">
-              <button id="logoutBtn" type="button" class="btn-secondary">Logout</button>
+              <button id="volunteerLoginBtn" type="button">Login</button>
             </div>
           </div>
 
+          <div id="volunteerSignupFields" style="display:none;">
+            <label>Name</label>
+            <input id="signupName" placeholder="Your full name" />
+            <label>Age</label>
+            <input id="signupAge" type="number" min="1" max="120" />
+            <label>Gender</label>
+            <select id="signupGender">
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Non-Binary">Non-Binary</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+            <label>Email</label>
+            <input id="signupEmail" type="email" placeholder="you@example.com" />
+            <label>Password</label>
+            <input id="signupPassword" type="password" placeholder="Create password" />
+            <div class="actions">
+              <button id="volunteerSignupBtn" type="button">Sign Up</button>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="logoutBtn" type="button" class="btn-secondary">Logout</button>
+          </div>
+        </div>
+      </section>
+    </div> <!-- end authWrapper -->
+
+    <div id="dashboardWrapper" style="display:none;">
+      <section class="card">
+        <div class="section-head">
+          <h2>Your Profile</h2>
+          <span class="stat-chip">Volunteer Details</span>
+        </div>
+        <div class="grid">
           <div>
             <label>Your Vol-ID</label>
             <div class="vol-id-badge" id="volIdBadge">-</div>
@@ -78,6 +88,8 @@
             <input id="name" placeholder="Auto-filled" />
             <label>Email</label>
             <input id="email" type="email" placeholder="Auto-filled" />
+          </div>
+          <div>
             <label>Age</label>
             <input id="age" type="number" min="1" max="120" placeholder="Auto-filled" />
             <label>Gender</label>
@@ -87,10 +99,8 @@
           </div>
         </div>
       </section>
-    </div> <!-- end authWrapper -->
-
-    <div id="dashboardWrapper" style="display:none;">
-      <div class="topbar" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 16px;margin-bottom:12px;align-items:center;">
+      <div class="topbar"
+        style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 16px;margin-bottom:12px;align-items:center;">
         <div>
           <span id="dashVolName" style="font-weight:600;"></span>
           <span class="small" style="margin-left:8px;">Your Vol-ID: </span>
@@ -151,4 +161,3 @@
 </body>
 
 </html>
-

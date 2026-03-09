@@ -7,6 +7,8 @@
   <title>Site Manager Portal</title>
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-client.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 
@@ -26,7 +28,7 @@
           <h2>Site Manager Onboarding</h2>
           <span class="stat-chip" id="managerLoginBadge">Not Logged In</span>
         </div>
-        <div class="grid">
+        <div>
           <div>
             <label>Are you registered?</label>
             <div class="actions">
@@ -54,19 +56,20 @@
 
             <div class="actions"><button id="managerLogoutBtn" type="button" class="btn-secondary">Logout</button></div>
           </div>
-
-          <div>
-            <h3>Your Manager Credentials</h3>
-            <p class="small">After signup, save this unique manager ID for future logins.</p>
-            <p class="small"><strong>Manager ID:</strong> <span id="managerUniqueIdDisplay">-</span></p>
-            <p class="small" id="managerMeta"></p>
-          </div>
-        </div>
-    </div>
-    </section>
+      </section>
     </div> <!-- end authWrapper -->
 
     <div id="dashboardWrapper" style="display:none;">
+      <section class="card">
+        <div class="section-head">
+          <h2>Your Manager Credentials</h2>
+          <span class="stat-chip">Save for login</span>
+        </div>
+        <p class="small">After signup, save this unique manager ID for future logins.</p>
+        <p class="small"><strong>Manager ID:</strong> <span id="managerUniqueIdDisplay">-</span></p>
+        <p class="small" id="managerMeta"></p>
+      </section>
+
       <section class="card">
         <div class="section-head">
           <h2>Register Drive</h2>
@@ -130,4 +133,3 @@
 </body>
 
 </html>
-
