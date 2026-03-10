@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -62,13 +62,11 @@
     </section>
   </main>
   <script>
+    // Supabase-only: dashboard page is deprecated. Keep the CTA simple.
     (function () {
-      const token = localStorage.getItem('volopsOrgAuthToken');
       document.querySelectorAll('[data-dashboard-link]').forEach((el) => {
-        if (!token) {
-          el.setAttribute('href', '/login.html');
-          el.textContent = 'Login To Access Dashboard';
-        }
+        el.setAttribute('href', '/organization.html');
+        el.textContent = 'Open Organization Portal';
       });
     })();
   </script>
