@@ -286,70 +286,57 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
 
     let profile = null;
 
-    // 1. Try server-side signup first (bypasses email rate limits)
-    const response = await fetch('/api/volunteer/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, age, gender })
-    });
+    // 1. Try server-side signup (bypasses email rate limits)
+    let serverOk = false;
+    try {
+      const response = await fetch('/api/volunteer/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, age, gender })
+      });
 
-    if (response.ok) {
-      // Server-side signup succeeded
-      const result = await response.json();
-      profile = result.profile;
+      if (response.ok) {
+        const result = await response.json();
+        profile = result.profile;
+        serverOk = true;
+      } else if (response.status !== 503) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Signup failed');
+      }
+      // 503 means server signup not configured -- fall through to client-side
+    } catch (fetchErr) {
+      if (!(fetchErr instanceof TypeError)) throw fetchErr;
+      // Network error -- fall through to client-side signup
+    }
 
-      // Sign in client-side to establish Supabase session
+    // 2. Sign in to establish client session
+    if (serverOk) {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
-
-    } else if (response.status === 503) {
-      // Server-side signup unavailable — fall back to client-side Supabase Auth
+    } else if (!profile) {
+      // Client-side fallback: signUp via Supabase Auth
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
       if (signUpError) throw signUpError;
 
-      // If email confirmation is required, the session may not be available yet
       let userId = signUpData.session?.user?.id || signUpData.user?.id;
       if (!userId) {
         throw new Error('Signup submitted. Please check your email to confirm, then log in.');
       }
 
-      // If session was not returned by signUp, sign in explicitly
       if (!signUpData.session) {
         const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
         userId = authData.user.id;
       }
 
-      // Create volunteer profile record
-      profile = await upsertVolunteerProfile({
-        id: userId,
-        name,
-        email,
-        age,
-        gender
-      });
-
-    } else {
-      // Other server error
-      const result = await response.json();
-      throw new Error(result.error || 'Signup failed');
+      profile = await upsertVolunteerProfile({ id: userId, name, email, age, gender });
     }
 
     if (profile) {
       applyVolunteerToForm(profile);
       setStatus('Signup successful.');
     } else {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        const fetched = await fetchVolunteerProfile(session.user.id);
-        if (fetched) {
-          setStatus('Signup successful.');
-        } else {
-          const local = createLocalVolunteerProfile({ id: session.user.id, email });
-          applyVolunteerToForm(local);
-          setStatus('Signup completed, but profile was not created. Please click “Save Profile”.', 'warn');
-        }
-      }
+      setStatus('Signup completed but profile creation failed. Please try saving your profile again.', 'warn');
     }
   } catch (e) {
     setStatus(e.message, 'warn');
@@ -377,8 +364,7 @@ saveProfileBtn?.addEventListener('click', async () => {
   }
 });
 
-async function doLogout() {
-  await supabase.auth.signOut();
+function resetVolunteerUI() {
   currentVolunteer = null;
   nameEl.value = '';
   emailEl.value = '';
@@ -390,6 +376,11 @@ async function doLogout() {
 
   authWrapperEl.style.display = 'block';
   dashboardWrapperEl.style.display = 'none';
+}
+
+async function doLogout() {
+  try { await supabase.auth.signOut(); } catch (_) { /* ignore */ }
+  resetVolunteerUI();
 }
 
 document.getElementById('logoutBtn').addEventListener('click', doLogout);
@@ -505,7 +496,7 @@ async function initAuth() {
     if (event === 'SIGNED_IN' && session) {
       if (!currentVolunteer) await fetchVolunteerProfile(session.user.id);
     } else if (event === 'SIGNED_OUT') {
-      doLogout();
+      resetVolunteerUI();
     }
   });
 

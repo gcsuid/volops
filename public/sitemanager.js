@@ -296,8 +296,7 @@ drivesBodyEl.addEventListener('click', async (e) => {
   }
 });
 
-async function doLogout() {
-  await supabase.auth.signOut();
+function resetManagerUI() {
   activeManager = null;
   activeOrg = null;
   managerUniqueIdDisplayEl.textContent = '-';
@@ -306,6 +305,11 @@ async function doLogout() {
 
   authWrapperEl.style.display = 'block';
   dashboardWrapperEl.style.display = 'none';
+}
+
+async function doLogout() {
+  try { await supabase.auth.signOut(); } catch (_) { /* ignore */ }
+  resetManagerUI();
 }
 
 document.getElementById('managerLogoutBtn').addEventListener('click', doLogout);
@@ -335,7 +339,7 @@ async function initAuth() {
         if (mgr) await loadDrives();
       }
     } else if (event === 'SIGNED_OUT') {
-      doLogout();
+      resetManagerUI();
     }
   });
 }
