@@ -233,8 +233,7 @@ document.getElementById('orgExportXlsBtn')?.addEventListener('click', () => {
   alert("Export XLS requires building an exporter function for Supabase Edge Functions or parsing client side. Future update required.");
 });
 
-async function doLogout() {
-  await supabase.auth.signOut();
+function resetOrgUI() {
   activeOrg = null;
   orgCompanyIdDisplayEl.textContent = '-';
   orgCodeDisplayEl.textContent = '-';
@@ -245,6 +244,11 @@ async function doLogout() {
 
   authWrapperEl.style.display = 'block';
   dashboardWrapperEl.style.display = 'none';
+}
+
+async function doLogout() {
+  try { await supabase.auth.signOut(); } catch (_) { /* ignore */ }
+  resetOrgUI();
 }
 
 document.getElementById('orgLogoutBtn').addEventListener('click', doLogout);
@@ -275,7 +279,7 @@ async function initAuth() {
         if (org) { await loadSheet(); await loadDrives(); }
       }
     } else if (event === 'SIGNED_OUT') {
-      doLogout();
+      resetOrgUI();
     }
   });
 }
