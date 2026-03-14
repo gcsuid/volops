@@ -38,12 +38,22 @@
 - If wrong role session exists, user is redirected to the correct role page.
 - Protected APIs return `401` for invalid/missing role session token.
 
-## Dummy Test Accounts
+## Demo Credentials
 
-### Volunteer (registered)
-- Email: `demo.volunteer@volops.dev`
-- Password: `demo123`
-- Name: `Demo Volunteer`
+### How to load demo data
+After running `supabase/schema.sql` in the Supabase SQL Editor, run
+`supabase/seed.sql` in the same editor. It creates the accounts below and
+pre-confirms them so you can log in immediately without any email verification.
+
+### Volunteer (demo – ready to use)
+| Field    | Value                       |
+|----------|-----------------------------|
+| Email    | `demo.volunteer@volops.dev` |
+| Password | `Demo@Volops1`              |
+| Name     | `Demo Volunteer`            |
+| Vol ID   | `VOL-DEMO-001`              |
+
+Login page: `/volunteer.html`
 
 ### Organization (registered)
 - Company ID: `CMP-1001`
