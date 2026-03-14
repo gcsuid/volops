@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -7,10 +7,27 @@
   <title>VolOps Login</title>
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase-client.js"></script>
   <script>
-    if (localStorage.getItem('volopsVolunteerAuthToken')) window.location.href = '/volunteer.html';
-    else if (localStorage.getItem('volopsOrgAuthToken')) window.location.href = '/organization.html';
-    else if (localStorage.getItem('volopsSiteManagerAuthToken')) window.location.href = '/sitemanager.html';
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+
+        const userId = session.user.id;
+        const volunteer = await supabase.from('volunteers').select('id').eq('id', userId).maybeSingle();
+        if (volunteer?.data?.id) return window.location.replace('/volunteer.html');
+
+        const org = await supabase.from('organizations').select('id').eq('id', userId).maybeSingle();
+        if (org?.data?.id) return window.location.replace('/organization.html');
+
+        const mgr = await supabase.from('site_managers').select('id').eq('id', userId).maybeSingle();
+        if (mgr?.data?.id) return window.location.replace('/sitemanager.html');
+      } catch {
+        // ignore: user can still choose a role below
+      }
+    })();
   </script>
 </head>
 

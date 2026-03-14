@@ -1,4 +1,4 @@
-﻿# Volunteer Management Website (VolOps)
+# Volunteer Management Website (VolOps)
 
 ## Run
 1. Open terminal in `C:\Users\KIIT\Desktop\personal_project\volunteer-management-site`
@@ -12,7 +12,7 @@
 - Volunteer: `/volunteer.html`
 - Site Manager: `/sitemanager.html`
 - Organization: `/organization.html`
-- Organization dashboard/reports: `/dashboard.html` (organization session required)
+- Organization dashboard/reports: use `/organization.html` (Supabase-only)
 
 ## New Onboarding Flow
 
@@ -64,6 +64,6 @@
 - Volunteer rows appear in organization day sheet for that date.
 
 ## Notes
-- Data persists in `data/db.json`.
+- Supabase-only: operational data is stored in Supabase tables (see `supabase/schema.sql`).
 - Camera and geolocation permissions are required for full volunteer check-in flow.
 - QR scan/render uses CDN libraries.

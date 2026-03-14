@@ -1,4 +1,4 @@
-﻿const tokenInput = document.getElementById('tokenInput');
+const tokenInput = document.getElementById('tokenInput');
 const orgCodeInput = document.getElementById('orgCodeInput');
 const eventInfo = document.getElementById('eventInfo');
 const statusBox = document.getElementById('status');
@@ -43,6 +43,58 @@ let timerHandle = null;
 let locationWatchId = null;
 let photoDataUrl = '';
 let currentVolunteer = null;
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+
+function isNoRowsFound(error) {
+  const msg = String(error?.message || '');
+  const code = String(error?.code || '');
+  return code === 'PGRST116' || msg.toLowerCase().includes('no rows');
+}
+
+function createLocalVolunteerProfile({ id, email }) {
+  return {
+    id,
+    vol_id: '',
+    name: '',
+    email: email || '',
+    age: null,
+    gender: ''
+  };
+}
+
+async function upsertVolunteerProfile(profile) {
+  const cleanName = String(profile.name || '').trim();
+  const cleanEmail = String(profile.email || '').trim();
+  const cleanGender = String(profile.gender || '').trim();
+  const cleanAge = Number(profile.age);
+
+  if (!cleanName) throw new Error('Name is required');
+  if (!cleanEmail) throw new Error('Email is required');
+  if (!Number.isInteger(cleanAge) || cleanAge < 1 || cleanAge > 120) throw new Error('Age must be 1-120');
+  if (!cleanGender) throw new Error('Gender is required');
+
+  // If vol_id is missing, generate one client-side (unique constraint enforced in DB).
+  // Collision chance is low; if collision occurs, Supabase returns a unique violation error.
+  const volId = profile.vol_id && String(profile.vol_id).trim()
+    ? String(profile.vol_id).trim()
+    : `VOL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const { data, error } = await supabase
+    .from('volunteers')
+    .upsert([{
+      id: profile.id,
+      vol_id: volId,
+      name: cleanName,
+      email: cleanEmail.toLowerCase(),
+      age: cleanAge,
+      gender: cleanGender
+    }], { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
 
 function escapeHtml(v) {
   return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -141,8 +193,12 @@ function applyVolunteerToForm(volunteer) {
 
 async function fetchVolunteerProfile(userId) {
   const { data, error } = await supabase.from('volunteers').select('*').eq('id', userId).single();
-  if (data) applyVolunteerToForm(data);
-  return data;
+  if (data) {
+    applyVolunteerToForm(data);
+    return data;
+  }
+  if (error && !isNoRowsFound(error)) throw error;
+  return null;
 }
 
 async function loadEvent(token) {
@@ -203,8 +259,16 @@ document.getElementById('volunteerLoginBtn').addEventListener('click', async () 
       password: loginPasswordEl.value
     });
     if (error) throw error;
-    await fetchVolunteerProfile(data.user.id);
-    setStatus('Login successful.');
+    const profile = await fetchVolunteerProfile(data.user.id);
+    if (!profile) {
+      // Auth is valid but the profile row is missing (or RLS blocked insert previously).
+      // Let the user proceed and save their profile from the dashboard panel.
+      const local = createLocalVolunteerProfile({ id: data.user.id, email: data.user.email || loginEmailEl.value.trim() });
+      applyVolunteerToForm(local);
+      setStatus('Logged in, but your volunteer profile is missing. Please fill your details and click “Save Profile”.', 'warn');
+    } else {
+      setStatus('Login successful.');
+    }
   } catch (e) {
     setStatus(e.message, 'warn');
   }
@@ -257,12 +321,13 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
       }
 
       // Create volunteer profile record
-      const volId = 'VOL-' + String(Math.floor(100000 + Math.random() * 900000));
-      const { data: profileData, error: dbError } = await supabase.from('volunteers').insert([{
-        id: userId, vol_id: volId, name, email, age, gender
-      }]).select().single();
-      if (dbError) throw dbError;
-      profile = profileData;
+      profile = await upsertVolunteerProfile({
+        id: userId,
+        name,
+        email,
+        age,
+        gender
+      });
 
     } else {
       // Other server error
@@ -270,8 +335,43 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
       throw new Error(result.error || 'Signup failed');
     }
 
-    applyVolunteerToForm(profile);
-    setStatus('Signup successful.');
+    if (profile) {
+      applyVolunteerToForm(profile);
+      setStatus('Signup successful.');
+    } else {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const fetched = await fetchVolunteerProfile(session.user.id);
+        if (fetched) {
+          setStatus('Signup successful.');
+        } else {
+          const local = createLocalVolunteerProfile({ id: session.user.id, email });
+          applyVolunteerToForm(local);
+          setStatus('Signup completed, but profile was not created. Please click “Save Profile”.', 'warn');
+        }
+      }
+    }
+  } catch (e) {
+    setStatus(e.message, 'warn');
+  }
+});
+
+saveProfileBtn?.addEventListener('click', async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || currentVolunteer?.id;
+    if (!userId) throw new Error('Please login first');
+
+    const saved = await upsertVolunteerProfile({
+      id: userId,
+      vol_id: currentVolunteer?.vol_id || '',
+      name: nameEl.value,
+      email: emailEl.value,
+      age: ageEl.value,
+      gender: genderEl.value
+    });
+    applyVolunteerToForm(saved);
+    setStatus('Profile saved.');
   } catch (e) {
     setStatus(e.message, 'warn');
   }
