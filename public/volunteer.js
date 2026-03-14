@@ -305,7 +305,7 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
       }
       // 503 means server signup not configured -- fall through to client-side
     } catch (fetchErr) {
-      if (fetchErr.message && fetchErr.message !== 'Failed to fetch') throw fetchErr;
+      if (!(fetchErr instanceof TypeError)) throw fetchErr;
       // Network error -- fall through to client-side signup
     }
 
@@ -336,7 +336,7 @@ document.getElementById('volunteerSignupBtn').addEventListener('click', async ()
       applyVolunteerToForm(profile);
       setStatus('Signup successful.');
     } else {
-      setStatus('Signup completed but profile missing. Please fill details and click Save Profile.', 'warn');
+      setStatus('Signup completed but profile creation failed. Please try saving your profile again.', 'warn');
     }
   } catch (e) {
     setStatus(e.message, 'warn');
