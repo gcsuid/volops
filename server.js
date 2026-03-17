@@ -116,6 +116,55 @@ app.post('/api/volunteer/signup', async (req, res) => {
   }
 });
 
+app.post('/api/organization/signup', async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        error: 'Server-side signup is not available. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on the server.',
+        fallback: 'client'
+      });
+    }
+
+    const { email, password, name, location } = req.body;
+    if (!email || !password || !name || !location) {
+      return res.status(400).json({ error: 'All fields are required (email, password, name, location).' });
+    }
+
+    const companyId = `CMP-${crypto.randomInt(100000, 999999)}`;
+    const orgCode = String(crypto.randomInt(1000000000, 9999999999));
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true
+    });
+
+    if (authError) {
+      return res.status(400).json({ error: authError.message });
+    }
+
+    const user = authData.user;
+
+    const { data: org, error: dbError } = await supabaseAdmin.from('organizations').insert([{
+      id: user.id,
+      name,
+      location,
+      contact_email: email,
+      company_id: companyId,
+      identity_key: 'email:' + email,
+      org_code: orgCode
+    }]).select().single();
+
+    if (dbError) {
+      return res.status(500).json({ error: dbError.message });
+    }
+
+    res.json({ org });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 app.post('/api/sitemanager/signup', async (req, res) => {
   try {
     if (!supabaseAdmin) {

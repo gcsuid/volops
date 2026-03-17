@@ -139,6 +139,12 @@ create policy organizations_select_own on public.organizations
 for select to authenticated
 using (id = auth.uid());
 
+-- Allow narrow public reads needed for login and volunteer check-in flows.
+drop policy if exists organizations_lookup_for_login_and_checkin on public.organizations;
+create policy organizations_lookup_for_login_and_checkin on public.organizations
+for select
+using (true);
+
 drop policy if exists organizations_insert_own on public.organizations;
 create policy organizations_insert_own on public.organizations
 for insert to authenticated
@@ -187,6 +193,12 @@ using (
     where o.id = auth.uid() and o.id = drives.org_id
   )
 );
+
+-- Volunteers need to resolve drive codes/tokens before check-in.
+drop policy if exists drives_select_public_for_checkin on public.drives;
+create policy drives_select_public_for_checkin on public.drives
+for select
+using (true);
 
 drop policy if exists drives_insert_manager_scope on public.drives;
 create policy drives_insert_manager_scope on public.drives

@@ -1,7 +1,7 @@
 # Volunteer Management Website (VolOps)
 
 ## Run
-1. Open terminal in `C:\Users\KIIT\Desktop\personal_project\volunteer-management-site`
+1. Open terminal in `C:\Users\KIIT\Desktop\personal_project\volops`
 2. Start server:
    ```powershell
    node server.js
@@ -45,7 +45,7 @@ After running `supabase/schema.sql` in the Supabase SQL Editor, run
 `supabase/seed.sql` in the same editor. It creates the accounts below and
 pre-confirms them so you can log in immediately without any email verification.
 
-### Volunteer (demo – ready to use)
+### Volunteer (demo - ready to use)
 | Field    | Value                       |
 |----------|-----------------------------|
 | Email    | `demo.volunteer@volops.dev` |

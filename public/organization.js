@@ -25,6 +25,14 @@ const orgDrivesBodyEl = document.getElementById('orgDrivesBody');
 
 let activeOrg = null;
 
+function normalizeSignupError(error) {
+  const message = String(error?.message || error || 'Signup failed');
+  if (message.includes('over_email_send_rate_limit')) {
+    return 'Signup is blocked by the current Supabase email rate limit. Configure server-side signup with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to bypass email sends.';
+  }
+  return message;
+}
+
 function escapeHtml(v) {
   return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -190,36 +198,71 @@ document.getElementById('orgSignupBtn').addEventListener('click', async () => {
 
     if (!name || !location || !email || !password) throw new Error("All fields are required");
 
-    // 1. Sign up user via Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
-    if (authError) throw authError;
+    let org = null;
 
-    const user = authData.user;
-    if (!user) throw new Error("Signup failed");
+    // 1. Try server-side signup first to bypass Supabase email rate limits.
+    let serverOk = false;
+    try {
+      const response = await fetch('/api/organization/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, location })
+      });
 
-    // 2. Generate unique identifiers
-    const companyId = `CMP-${Math.floor(100000 + Math.random() * 900000)}`;
-    const orgCode = String(Math.floor(1000000000 + Math.random() * 9000000000)); // 10 digit code
+      if (response.ok) {
+        const result = await response.json();
+        org = result.org;
+        serverOk = true;
+      } else if (response.status !== 503) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Signup failed');
+      }
+    } catch (fetchErr) {
+      if (!(fetchErr instanceof TypeError)) throw fetchErr;
+      // Network error: fall through to client-side signup.
+    }
 
-    // 3. Insert specific org settings into the custom table
-    // (Note: Supabase user ids are UUIDs, so we map them 1:1)
-    const { data: org, error: dbError } = await supabase.from('organizations').insert([{
-      id: user.id,
-      name,
-      location,
-      contact_email: email,
-      company_id: companyId,
-      identity_key: 'email:' + email, // legacy support for older queries if needed
-      org_code: orgCode
-    }]).select().single();
+    // 2. Establish a client session.
+    if (serverOk) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
+    } else if (!org) {
+      const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+      if (authError) throw authError;
 
-    if (dbError) throw dbError;
+      let userId = authData.session?.user?.id || authData.user?.id;
+      if (!userId) {
+        throw new Error('Signup submitted. Please check your email to confirm, then log in.');
+      }
+
+      if (!authData.session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+        userId = signInData.user.id;
+      }
+
+      const companyId = `CMP-${Math.floor(100000 + Math.random() * 900000)}`;
+      const orgCode = String(Math.floor(1000000000 + Math.random() * 9000000000));
+
+      const { data: createdOrg, error: dbError } = await supabase.from('organizations').insert([{
+        id: userId,
+        name,
+        location,
+        contact_email: email,
+        company_id: companyId,
+        identity_key: 'email:' + email,
+        org_code: orgCode
+      }]).select().single();
+
+      if (dbError) throw dbError;
+      org = createdOrg;
+    }
 
     applyOrgSession(org);
     await loadSheet();
     await loadDrives();
   } catch (err) {
-    setBadge(err.message || 'Registration failed', false);
+    setBadge(normalizeSignupError(err), false);
   }
 });
 
