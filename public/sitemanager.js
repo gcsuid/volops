@@ -6,6 +6,7 @@ const managerSignupFieldsEl = document.getElementById('managerSignupFields');
 
 const managerLoginEmailEl = document.getElementById('managerLoginEmail');
 const managerLoginUniqueIdEl = document.getElementById('managerLoginUniqueId');
+const managerLoginBtn = document.getElementById('managerLoginBtn');
 
 const authWrapperEl = document.getElementById('authWrapper');
 const dashboardWrapperEl = document.getElementById('dashboardWrapper');
@@ -13,6 +14,7 @@ const dashboardWrapperEl = document.getElementById('dashboardWrapper');
 const managerSignupEmailEl = document.getElementById('managerSignupEmail');
 const managerSignupNameEl = document.getElementById('managerSignupName');
 const managerSignupCompanyIdEl = document.getElementById('managerSignupCompanyId');
+const managerSignupBtn = document.getElementById('managerSignupBtn');
 
 const managerNameEl = document.getElementById('managerName');
 const managerOrgNameEl = document.getElementById('managerOrgName');
@@ -34,6 +36,46 @@ const managerMetaEl = document.getElementById('managerMeta');
 
 let activeManager = null;
 let activeOrg = null;
+let authAttemptCounter = 0;
+
+function logAuthAttempt(action, detail = {}) {
+  authAttemptCounter += 1;
+  console.info(`[manager auth] #${authAttemptCounter} ${action}`, detail);
+  return authAttemptCounter;
+}
+
+function normalizeAuthError(error) {
+  const message = String(error?.message || error || 'Authentication failed');
+  if (message.includes('over_email_send_rate_limit') || message.includes('429')) {
+    return 'Too many auth requests. Wait a minute before trying again.';
+  }
+  if (message.includes('503')) {
+    return 'Service is temporarily unavailable. Please retry shortly.';
+  }
+  return message;
+}
+
+async function withButtonLock(button, action, detail, task) {
+  if (!button) return task(logAuthAttempt(action, detail));
+  if (button.dataset.loading === 'true') {
+    console.warn(`[manager auth] Ignoring duplicate ${action} click`);
+    return;
+  }
+
+  const attemptId = logAuthAttempt(action, detail);
+  const originalText = button.textContent;
+  button.dataset.loading = 'true';
+  button.disabled = true;
+  button.textContent = 'Please wait...';
+
+  try {
+    return await task(attemptId);
+  } finally {
+    button.dataset.loading = 'false';
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
 
 function setBadge(text, ok = false) {
   managerLoginBadgeEl.textContent = text;
@@ -80,35 +122,32 @@ async function fetchManagerProfile(userId) {
   return manager;
 }
 
-document.getElementById('managerLoginBtn').addEventListener('click', async () => {
-  try {
-    const email = managerLoginEmailEl.value.trim();
-    const uniqueId = managerLoginUniqueIdEl.value.trim();
+managerLoginBtn.addEventListener('click', async () => {
+  await withButtonLock(managerLoginBtn, 'login', { email: managerLoginEmailEl.value.trim() }, async () => {
+    try {
+      const email = managerLoginEmailEl.value.trim();
+      const uniqueId = managerLoginUniqueIdEl.value.trim();
 
-    if (!email || !uniqueId) throw new Error("Email and Unique Manager ID are required");
+      if (!email || !uniqueId) throw new Error('Email and Unique Manager ID are required');
 
-    // We emulate a password for Supabase Auth since we previously used "Unique Manager ID" as a sort of password 
-    // Wait, let's look up the user first, or just try log in with Unique ID as pwd
-    // We didn't setup a password field for managers in the original UI, let's use the uniqueId as their password.
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: uniqueId
+      });
 
-    // In a real migration we'd enforce a proper password field. For now, since they used a dummy server, 
-    // let's assume they created the account with Unique_ID as password
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: uniqueId
-    });
+      if (authError) throw authError;
 
-    if (authError) throw authError;
-
-    await fetchManagerProfile(authData.user.id);
-    await loadDrives();
-  } catch (err) {
-    setBadge(err.message || 'Login failed', false);
-  }
+      await fetchManagerProfile(authData.user.id);
+      await loadDrives();
+    } catch (err) {
+      setBadge(normalizeAuthError(err), false);
+    }
+  });
 });
 
-document.getElementById('managerSignupBtn').addEventListener('click', async () => {
-  try {
+managerSignupBtn.addEventListener('click', async () => {
+  await withButtonLock(managerSignupBtn, 'signup', { email: managerSignupEmailEl.value.trim() }, async () => {
+    try {
     const email = managerSignupEmailEl.value.trim();
     const name = managerSignupNameEl.value.trim();
     const companyId = managerSignupCompanyIdEl.value.trim().toUpperCase();
@@ -191,9 +230,10 @@ document.getElementById('managerSignupBtn').addEventListener('click', async () =
 
     applyManagerSession(manager, org);
     await loadDrives();
-  } catch (err) {
-    setBadge(err.message || 'Signup failed', false);
-  }
+    } catch (err) {
+      setBadge(normalizeAuthError(err), false);
+    }
+  });
 });
 
 

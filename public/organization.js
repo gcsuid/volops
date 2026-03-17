@@ -6,6 +6,7 @@ const orgSignupFieldsEl = document.getElementById('orgSignupFields');
 
 const orgLoginCompanyIdEl = document.getElementById('orgLoginCompanyId');
 const orgLoginPasswordEl = document.getElementById('orgLoginPassword');
+const orgLoginBtn = document.getElementById('orgLoginBtn');
 
 const authWrapperEl = document.getElementById('authWrapper');
 const dashboardWrapperEl = document.getElementById('dashboardWrapper');
@@ -14,6 +15,7 @@ const orgSignupNameEl = document.getElementById('orgSignupName');
 const orgSignupLocationEl = document.getElementById('orgSignupLocation');
 const orgSignupEmailEl = document.getElementById('orgSignupEmail');
 const orgSignupPasswordEl = document.getElementById('orgSignupPassword');
+const orgSignupBtn = document.getElementById('orgSignupBtn');
 
 const orgCompanyIdDisplayEl = document.getElementById('orgCompanyIdDisplay');
 const orgCodeDisplayEl = document.getElementById('orgCodeDisplay');
@@ -24,6 +26,35 @@ const orgSheetBodyEl = document.getElementById('orgSheetBody');
 const orgDrivesBodyEl = document.getElementById('orgDrivesBody');
 
 let activeOrg = null;
+let authAttemptCounter = 0;
+
+function logAuthAttempt(action, detail = {}) {
+  authAttemptCounter += 1;
+  console.info(`[organization auth] #${authAttemptCounter} ${action}`, detail);
+  return authAttemptCounter;
+}
+
+async function withButtonLock(button, action, detail, task) {
+  if (!button) return task(logAuthAttempt(action, detail));
+  if (button.dataset.loading === 'true') {
+    console.warn(`[organization auth] Ignoring duplicate ${action} click`);
+    return;
+  }
+
+  const attemptId = logAuthAttempt(action, detail);
+  const originalText = button.textContent;
+  button.dataset.loading = 'true';
+  button.disabled = true;
+  button.textContent = 'Please wait...';
+
+  try {
+    return await task(attemptId);
+  } finally {
+    button.dataset.loading = 'false';
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
 
 function normalizeSignupError(error) {
   const message = String(error?.message || error || 'Signup failed');
@@ -162,35 +193,36 @@ async function loadSheet() {
   });
 }
 
-document.getElementById('orgLoginBtn').addEventListener('click', async () => {
-  try {
-    const companyId = orgLoginCompanyIdEl.value.trim().toUpperCase();
-    const password = orgLoginPasswordEl.value;
+orgLoginBtn.addEventListener('click', async () => {
+  await withButtonLock(orgLoginBtn, 'login', { companyId: orgLoginCompanyIdEl.value.trim().toUpperCase() }, async () => {
+    try {
+      const companyId = orgLoginCompanyIdEl.value.trim().toUpperCase();
+      const password = orgLoginPasswordEl.value;
 
-    if (!companyId || !password) throw new Error("Company ID and Password are required");
+      if (!companyId || !password) throw new Error('Company ID and Password are required');
 
-    // 1. Look up the email associated with this company ID (Supabase Auth requires email to sign in)
-    const { data: orgData, error: lookupError } = await supabase.from('organizations').select('contact_email').eq('company_id', companyId).single();
-    if (lookupError || !orgData) throw new Error("Invalid Company ID");
+      const { data: orgData, error: lookupError } = await supabase.from('organizations').select('contact_email').eq('company_id', companyId).single();
+      if (lookupError || !orgData) throw new Error('Invalid Company ID');
 
-    // 2. Sign in using the located email
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: orgData.contact_email,
-      password: password
-    });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: orgData.contact_email,
+        password: password
+      });
 
-    if (authError) throw authError;
+      if (authError) throw authError;
 
-    await fetchOrgProfile(authData.user.id);
-    await loadSheet();
-    await loadDrives();
-  } catch (err) {
-    setBadge(err.message || 'Login failed', false);
-  }
+      await fetchOrgProfile(authData.user.id);
+      await loadSheet();
+      await loadDrives();
+    } catch (err) {
+      setBadge(normalizeSignupError(err), false);
+    }
+  });
 });
 
-document.getElementById('orgSignupBtn').addEventListener('click', async () => {
-  try {
+orgSignupBtn.addEventListener('click', async () => {
+  await withButtonLock(orgSignupBtn, 'signup', { email: orgSignupEmailEl.value.trim() }, async () => {
+    try {
     const name = orgSignupNameEl.value.trim();
     const location = orgSignupLocationEl.value.trim();
     const email = orgSignupEmailEl.value.trim();
@@ -261,9 +293,10 @@ document.getElementById('orgSignupBtn').addEventListener('click', async () => {
     applyOrgSession(org);
     await loadSheet();
     await loadDrives();
-  } catch (err) {
-    setBadge(normalizeSignupError(err), false);
-  }
+    } catch (err) {
+      setBadge(normalizeSignupError(err), false);
+    }
+  });
 });
 
 document.getElementById('orgLoadByDateBtn').addEventListener('click', loadSheet);

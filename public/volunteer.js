@@ -23,12 +23,14 @@ const dashboardWrapperEl = document.getElementById('dashboardWrapper');
 
 const loginEmailEl = document.getElementById('loginEmail');
 const loginPasswordEl = document.getElementById('loginPassword');
+const volunteerLoginBtn = document.getElementById('volunteerLoginBtn');
 
 const signupNameEl = document.getElementById('signupName');
 const signupAgeEl = document.getElementById('signupAge');
 const signupGenderEl = document.getElementById('signupGender');
 const signupEmailEl = document.getElementById('signupEmail');
 const signupPasswordEl = document.getElementById('signupPassword');
+const volunteerSignupBtn = document.getElementById('volunteerSignupBtn');
 
 const cameraEl = document.getElementById('camera');
 const canvasEl = document.getElementById('snapshotCanvas');
@@ -44,6 +46,46 @@ let locationWatchId = null;
 let photoDataUrl = '';
 let currentVolunteer = null;
 const saveProfileBtn = document.getElementById('saveProfileBtn');
+let authAttemptCounter = 0;
+
+function logAuthAttempt(action, detail = {}) {
+  authAttemptCounter += 1;
+  console.info(`[volunteer auth] #${authAttemptCounter} ${action}`, detail);
+  return authAttemptCounter;
+}
+
+function normalizeAuthError(error) {
+  const message = String(error?.message || error || 'Authentication failed');
+  if (message.includes('over_email_send_rate_limit') || message.includes('429')) {
+    return 'Too many auth requests. Wait a minute before trying again.';
+  }
+  if (message.includes('503')) {
+    return 'Service is temporarily unavailable. Please retry shortly.';
+  }
+  return message;
+}
+
+async function withButtonLock(button, action, detail, task) {
+  if (!button) return task(logAuthAttempt(action, detail));
+  if (button.dataset.loading === 'true') {
+    console.warn(`[volunteer auth] Ignoring duplicate ${action} click`);
+    return;
+  }
+
+  const attemptId = logAuthAttempt(action, detail);
+  const originalText = button.textContent;
+  button.dataset.loading = 'true';
+  button.disabled = true;
+  button.textContent = 'Please wait...';
+
+  try {
+    return await task(attemptId);
+  } finally {
+    button.dataset.loading = 'false';
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
 
 function isNoRowsFound(error) {
   const msg = String(error?.message || '');
@@ -252,7 +294,7 @@ function stopCameraStream() {
 registeredYesBtn.addEventListener('click', () => setMode('login'));
 registeredNoBtn.addEventListener('click', () => setMode('signup'));
 
-document.getElementById('volunteerLoginBtn').addEventListener('click', async () => {
+volunteerLoginBtn.addEventListener('click', async () => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmailEl.value.trim(),
@@ -274,7 +316,7 @@ document.getElementById('volunteerLoginBtn').addEventListener('click', async () 
   }
 });
 
-document.getElementById('volunteerSignupBtn').addEventListener('click', async () => {
+volunteerSignupBtn.addEventListener('click', async () => {
   try {
     const email = signupEmailEl.value.trim();
     const name = signupNameEl.value.trim();
