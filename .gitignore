@@ -1,3 +1,4 @@
 node_modules/
 interview.md
 .env
+data/*.json
