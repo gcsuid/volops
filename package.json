@@ -1,14 +1,13 @@
 {
-  "name": "volunteer-management-site",
+  "name": "volops",
   "version": "1.0.0",
-  "description": "Volunteer management website with QR check-in, geofence tracking, dashboard and exports",
+  "description": "VolOps – volunteer operations platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0",
     "express": "^5.2.1"
   }
 }

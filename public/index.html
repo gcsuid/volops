@@ -1,132 +1,183 @@
-﻿<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VolOps | Volunteer Operations SaaS</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <title>VolOps – Organisation Portal</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
+<body class="auth-root">
 
-<body>
-  <!-- Preloader Sequence -->
-  <script>
-    if (sessionStorage.getItem('volopsPreloaderShown')) {
-      document.documentElement.classList.add('skip-preloader');
-    } else {
-      sessionStorage.setItem('volopsPreloaderShown', 'true');
-    }
-  </script>
-  <style>
-    html.skip-preloader #preloader {
-      display: none !important;
-      animation: none !important;
-    }
-  </style>
-  <div id="preloader">
-    <div id="dotLoader" class="dot-loader-grid"></div>
+  <div class="auth-card">
+    <!-- Logo -->
+    <div class="auth-logo">
+      <h1>VolOps</h1>
+      <p>Organisation Portal</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-signup" onclick="showTab('signup')">Sign Up</button>
+      <button class="auth-tab" id="tab-login" onclick="showTab('login')">Login</button>
+    </div>
+
+    <!-- ── SIGNUP FORM ──────────────────────────────────────────────────── -->
+    <div id="panel-signup">
+      <!-- Success banner shown after signup -->
+      <div id="signup-success" class="hidden">
+        <div class="company-id-banner">
+          <p>Your unique Company ID</p>
+          <strong id="signup-company-id">—</strong>
+          <small>Save this ID – you will use it to log in every time.</small>
+        </div>
+        <div class="alert alert-success" id="signup-success-msg"></div>
+        <button class="btn btn-primary" onclick="goToDashboard()">Go to Dashboard →</button>
+      </div>
+
+      <!-- Signup form -->
+      <div id="signup-form-wrap">
+        <div class="alert alert-error hidden" id="signup-error"></div>
+        <form id="signup-form" onsubmit="handleSignup(event)">
+          <div class="form-group">
+            <label for="signup-email">Organisation Email</label>
+            <input type="email" id="signup-email" placeholder="contact@yourorg.com" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-poc">Point of Contact Name</label>
+            <input type="text" id="signup-poc" placeholder="e.g. Riya Kapoor" required />
+          </div>
+          <button type="submit" class="btn btn-primary" id="signup-btn">
+            <span id="signup-btn-text">Create Organisation</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── LOGIN FORM ───────────────────────────────────────────────────── -->
+    <div id="panel-login" class="hidden">
+      <div class="alert alert-error hidden" id="login-error"></div>
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-company-id">Company ID</label>
+          <input type="text" id="login-company-id" placeholder="e.g. ORG-123456"
+                 autocomplete="off" required />
+        </div>
+        <button type="submit" class="btn btn-primary" id="login-btn">
+          <span id="login-btn-text">Login</span>
+        </button>
+      </form>
+      <p style="text-align:center;margin-top:16px;font-size:.85rem;color:var(--text-muted);">
+        Don't have an account? <a href="#" onclick="showTab('signup')" style="color:var(--primary);font-weight:600;">Sign up here</a>
+      </p>
+    </div>
   </div>
 
-  <main class="landing">
-    <section class="landing-hero">
-      <div class="landing-overlay"></div>
-      <div class="landing-content">
-        <div class="landing-brand">VolOps</div>
-        <h1>Want better logging of volunteer work?</h1>
-        <p>Stop chasing spreadsheets, timestamps, and attendance photos. Run volunteer operations like a modern SaaS
-          workflow.</p>
-        <div class="actions">
-          <a class="btn" href="/login.html">Login</a>
-        </div>
-      </div>
-      <a class="scroll-cue" href="#problem-solution">Scroll to see how VolOps solves this</a>
-    </section>
-
-    <section class="organic-grid" id="problem-solution"
-      style="width: min(1100px, calc(100% - 24px)); margin: 18px auto 0;">
-      <div class="organic-card">
-        <span class="cascade-kicker">The Problem</span>
-        <h2>Volunteer hours are lost in manual ops.</h2>
-        <p>Most teams still rely on handwritten logs, delayed approvals, and unclear site-level accountability. You miss
-          real attendance, time devoted, and proof of presence.</p>
-      </div>
-      <div class="organic-card">
-        <span class="cascade-kicker">The VolOps Fix</span>
-        <h2>From check-in to exports, one clear flow.</h2>
-        <p>Event-specific QR check-in, live timers, geofence validation, photo capture, and instant CSV/Excel reporting.
-          Every volunteer session becomes auditable and export-ready.</p>
-      </div>
-    </section>
-
-    <section class="organic-grid"
-      style="width: min(1100px, calc(100% - 24px)); margin: 18px auto 40px; display: block;">
-      <div class="organic-card" style="text-align: left; align-items: flex-start;">
-        <span class="cascade-kicker">Want the full playbook?</span>
-        <h2>See the OPS page for exactly what moat we build and how this scales for NGOs and communities.</h2>
-        <p>We break down defensibility, data advantages, and why this is not just attendance tracking.</p>
-        <div class="actions">
-          <a class="btn" href="/ops.html">Click Here</a>
-          <a class="btn btn-secondary" href="/login.html">Login To Continue</a>
-        </div>
-      </div>
-    </section>
-  </main>
   <script>
-    // Dot Loader Animation Script
-    const frames = [
-      [14, 7, 0, 8, 6, 13, 20],
-      [14, 7, 13, 20, 16, 27, 21],
-      [14, 20, 27, 21, 34, 24, 28],
-      [27, 21, 34, 28, 41, 32, 35],
-      [34, 28, 41, 35, 48, 40, 42],
-      [34, 28, 41, 35, 48, 42, 46],
-      [34, 28, 41, 35, 48, 42, 38],
-      [34, 28, 41, 35, 48, 30, 21],
-      [34, 28, 41, 48, 21, 22, 14],
-      [34, 28, 41, 21, 14, 16, 27],
-      [34, 28, 21, 14, 10, 20, 27],
-      [28, 21, 14, 4, 13, 20, 27],
-      [28, 21, 14, 12, 6, 13, 20],
-      [28, 21, 14, 6, 13, 20, 11],
-      [28, 21, 14, 6, 13, 20, 10],
-      [14, 6, 13, 20, 9, 7, 21],
-    ];
-
-    const loaderGrid = document.getElementById('dotLoader');
-    const totalDots = 49;
-    const duration = 100;
-
-    // Create the 49 DOT DOM elements
-    for (let i = 0; i < totalDots; i++) {
-      const dot = document.createElement('div');
-      dot.className = 'dot';
-      loaderGrid.appendChild(dot);
+    // ── Redirect if already logged in ────────────────────────────────────────
+    if (localStorage.getItem('vo_token') && localStorage.getItem('vo_companyId')) {
+      window.location.replace('/dashboard.html');
     }
 
-    const dotsArray = Array.from(loaderGrid.children);
-    let currentIndex = 0;
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function showTab(tab) {
+      document.getElementById('panel-signup').classList.toggle('hidden', tab !== 'signup');
+      document.getElementById('panel-login').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    }
 
-    // Animation loop identical to the React useEffect approach
-    const intervalId = setInterval(() => {
-      const currentFrameIndices = frames[currentIndex];
+    // ── Signup ────────────────────────────────────────────────────────────────
+    async function handleSignup(e) {
+      e.preventDefault();
+      const email   = document.getElementById('signup-email').value.trim();
+      const pocName = document.getElementById('signup-poc').value.trim();
+      const errEl   = document.getElementById('signup-error');
+      const btn     = document.getElementById('signup-btn');
+      const btnTxt  = document.getElementById('signup-btn-text');
 
-      dotsArray.forEach((dot, index) => {
-        if (currentFrameIndices.includes(index)) {
-          dot.classList.add('active');
-        } else {
-          dot.classList.remove('active');
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btnTxt.textContent = 'Creating…';
+
+      try {
+        const res  = await fetch('/api/org/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, pocName })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errEl.textContent = data.error || 'Signup failed.';
+          errEl.classList.remove('hidden');
+          return;
         }
-      });
 
-      currentIndex = (currentIndex + 1) % frames.length;
-    }, duration);
+        // Store session
+        localStorage.setItem('vo_token',     data.token);
+        localStorage.setItem('vo_companyId', data.companyId);
+        localStorage.setItem('vo_pocName',   data.pocName);
 
-    // Cleanup script after preloader fades (5 secs)
-    setTimeout(() => {
-      clearInterval(intervalId);
-    }, 5500);
+        // Show success with company ID
+        document.getElementById('signup-company-id').textContent = data.companyId;
+        document.getElementById('signup-success-msg').textContent =
+          `Welcome, ${data.pocName}! Your organisation has been created.`;
+        document.getElementById('signup-form-wrap').classList.add('hidden');
+        document.getElementById('signup-success').classList.remove('hidden');
 
+      } catch (err) {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btnTxt.textContent = 'Create Organisation';
+      }
+    }
+
+    // ── Login ─────────────────────────────────────────────────────────────────
+    async function handleLogin(e) {
+      e.preventDefault();
+      const companyId = document.getElementById('login-company-id').value.trim();
+      const errEl     = document.getElementById('login-error');
+      const btn       = document.getElementById('login-btn');
+      const btnTxt    = document.getElementById('login-btn-text');
+
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btnTxt.textContent = 'Logging in…';
+
+      try {
+        const res  = await fetch('/api/org/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errEl.textContent = data.error || 'Login failed.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+
+        localStorage.setItem('vo_token',     data.token);
+        localStorage.setItem('vo_companyId', data.companyId);
+        localStorage.setItem('vo_pocName',   data.pocName);
+
+        window.location.replace('/dashboard.html');
+
+      } catch (err) {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btnTxt.textContent = 'Login';
+      }
+    }
+
+    function goToDashboard() {
+      window.location.replace('/dashboard.html');
+    }
   </script>
 </body>
-
 </html>
