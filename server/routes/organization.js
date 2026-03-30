@@ -83,7 +83,7 @@ router.get('/me', orgAuth, async (req, res) => {
 router.get('/managers', orgAuth, async (req, res) => {
   try {
     const orgDbId = req.user._id || req.user.id;
-    const managers = await SiteManager.find({ org_id: orgDbId }).lean();
+    const managers = await SiteManager.find({ org_id: orgDbId });
 
     return successResponse(res, managers.map(m => ({
       id: m._id,
@@ -100,8 +100,8 @@ router.get('/managers', orgAuth, async (req, res) => {
 router.get('/stats', orgAuth, async (req, res) => {
   try {
     const orgDbId = req.user._id || req.user.id;
-    const drives = await Drive.find({ org_id: orgDbId }).lean();
-    const registrations = await Registration.find({ org_id: orgDbId }).lean();
+    const drives = await Drive.find({ org_id: orgDbId });
+    const registrations = await Registration.find({ org_id: orgDbId });
 
     const totalDrives = drives.length;
     const activeDrives = drives.filter(d => d.status === 'active').length;
@@ -140,10 +140,10 @@ router.get('/stats', orgAuth, async (req, res) => {
 router.get('/drives', orgAuth, async (req, res) => {
   try {
     const orgDbId = req.user._id || req.user.id;
-    const drives = await Drive.find({ org_id: orgDbId }).lean();
+    const drives = await Drive.find({ org_id: orgDbId });
 
     const drivesWithStats = await Promise.all(drives.map(async (d) => {
-      const regs = await Registration.find({ drive_id: d._id }).lean();
+      const regs = await Registration.find({ drive_id: d._id });
       const checkedOut = regs.filter(r => r.checked_out_at).length;
       const durations = regs.filter(r => r.duration_minutes).map(r => r.duration_minutes);
       const avgDuration = durations.length > 0
@@ -184,7 +184,7 @@ router.get('/drives/:id/volunteers', orgAuth, async (req, res) => {
       return errorResponse(res, 'Drive not found', 404);
     }
 
-    const volunteers = await Registration.find({ drive_id: drive._id }).lean();
+    const volunteers = await Registration.find({ drive_id: drive._id });
 
     return successResponse(res, volunteers.map(v => ({
       id: v._id,
@@ -203,8 +203,8 @@ router.get('/drives/:id/volunteers', orgAuth, async (req, res) => {
 router.get('/download', orgAuth, async (req, res) => {
   try {
     const orgDbId = req.user._id || req.user.id;
-    const drives = await Drive.find({ org_id: orgDbId }).lean();
-    const registrations = await Registration.find({ org_id: orgDbId }).lean();
+    const drives = await Drive.find({ org_id: orgDbId });
+    const registrations = await Registration.find({ org_id: orgDbId });
 
     let csv = 'Event Name,Event Date,Volunteer Name,Volunteer Email,Check-In Time,Check-Out Time,Duration (minutes)\n';
 

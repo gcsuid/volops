@@ -85,10 +85,10 @@ router.get('/me', volunteerAuth, async (req, res) => {
 
 router.get('/drives', volunteerAuth, async (req, res) => {
   try {
-    const myRegs = await Registration.find({ volunteer_id: req.user._id || req.user.id }).lean();
+    const myRegs = await Registration.find({ volunteer_id: req.user._id || req.user.id });
     const driveIds = myRegs.map(r => r.drive_id);
 
-    const drives = await Drive.find({ _id: { $in: driveIds } }).lean();
+    const drives = await Drive.find({ _id: { $in: driveIds } });
 
     const drivesWithReg = drives.map(d => {
       const reg = myRegs.find(r => (r.drive_id._id || r.drive_id).toString() === d._id.toString());
@@ -138,10 +138,14 @@ router.post('/checkin', volunteerAuth, async (req, res) => {
     const checkInTime = new Date();
 
     if (registration) {
-      registration.checked_in_at = checkInTime;
-      registration.checked_out_at = null;
-      registration.duration_minutes = null;
-      await registration.save();
+      registration = await Registration.findOneAndUpdate(
+        { _id: registration._id || registration.id },
+        {
+          checked_in_at: checkInTime,
+          checked_out_at: null,
+          duration_minutes: null
+        }
+      );
     } else {
       registration = await Registration.create({
         drive_id: drive._id,
@@ -172,7 +176,7 @@ router.post('/checkout', volunteerAuth, async (req, res) => {
       return errorResponse(res, 'Drive ID required');
     }
 
-    const registration = await Registration.findOne({
+    let registration = await Registration.findOne({
       volunteer_id: req.user._id || req.user.id,
       drive_id
     });
@@ -193,9 +197,13 @@ router.post('/checkout', volunteerAuth, async (req, res) => {
     const durationMs = checkOutTime - new Date(registration.checked_in_at);
     const durationMinutes = Math.round(durationMs / 60000);
 
-    registration.checked_out_at = checkOutTime;
-    registration.duration_minutes = durationMinutes;
-    await registration.save();
+    registration = await Registration.findOneAndUpdate(
+      { _id: registration._id || registration.id },
+      {
+        checked_out_at: checkOutTime,
+        duration_minutes: durationMinutes
+      }
+    );
 
     return successResponse(res, {
       message: 'Checked out successfully',
@@ -213,13 +221,13 @@ router.get('/current', volunteerAuth, async (req, res) => {
       volunteer_id: req.user._id || req.user.id,
       checked_in_at: { $ne: null },
       checked_out_at: null
-    }).lean();
+    });
 
     if (!activeReg) {
       return successResponse(res, { active: false });
     }
 
-    const drive = await Drive.findById(activeReg.drive_id).lean();
+    const drive = await Drive.findById(activeReg.drive_id);
 
     return successResponse(res, {
       active: true,

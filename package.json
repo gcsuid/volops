@@ -8,7 +8,8 @@
     "server": "node server.js",
     "client:dev": "npm run dev --prefix client",
     "client:build": "npm run build --prefix client",
-    "client:lint": "npm run lint --prefix client"
+    "client:lint": "npm run lint --prefix client",
+    "smoke:test": "node scripts/smoke-test.js"
   },
   "license": "ISC",
   "dependencies": {

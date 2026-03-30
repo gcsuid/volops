@@ -124,7 +124,7 @@ export function ManagerDashboard() {
   };
 
   const getQRUrl = (driveId: string, secret: string) => {
-    return `${window.location.origin}/join.html?drive=${driveId}&secret=${secret}`;
+    return `${window.location.origin}/join?drive=${driveId}&secret=${secret}`;
   };
 
   if (loading) {

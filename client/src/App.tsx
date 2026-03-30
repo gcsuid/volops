@@ -4,6 +4,7 @@ import { SignUpForm, SignUpSuccess } from '@/components/ui/sign-up';
 import { VolunteerDashboard } from '@/pages/VolunteerDashboard';
 import { ManagerDashboard } from '@/pages/ManagerDashboard';
 import { OrganizationDashboard } from '@/pages/OrganizationDashboard';
+import { JoinDrivePage } from '@/pages/JoinDrivePage';
 import { api } from '@/api';
 
 type View = 'signin' | 'signup' | 'success';
@@ -15,6 +16,10 @@ function App() {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [dashboard, setDashboard] = useState<UserRole | null>(null);
+  const searchParams = new URLSearchParams(window.location.search);
+  const isJoinPage = window.location.pathname === '/join' || window.location.pathname === '/join.html';
+  const joinDriveId = searchParams.get('drive');
+  const joinSecret = searchParams.get('secret');
 
   useEffect(() => {
     const savedToken = localStorage.getItem('vo_token');
@@ -122,11 +127,20 @@ function App() {
 
   const handleContinue = () => {
     if (signupData) {
-      localStorage.setItem('vo_token', signupData.userId);
-      localStorage.setItem('vo_role', signupData.role);
+      if (signupData.role === 'volunteer') {
+        localStorage.setItem('vo_vol_id', signupData.userId);
+      } else if (signupData.role === 'manager') {
+        localStorage.setItem('vo_mgr_id', signupData.userId);
+      } else {
+        localStorage.setItem('vo_org_id', signupData.userId);
+      }
       setDashboard(signupData.role);
     }
   };
+
+  if (isJoinPage && joinDriveId && joinSecret) {
+    return <JoinDrivePage driveId={joinDriveId} secret={joinSecret} />;
+  }
 
   if (dashboard === 'volunteer') {
     return <VolunteerDashboard />;

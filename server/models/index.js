@@ -41,6 +41,13 @@ const Organization = {
     return jsonStore.create('organizations', data);
   },
 
+  async findById(id) {
+    if (isConnected()) {
+      return mongoose.models.Organization.findById(id).lean();
+    }
+    return jsonStore.findById('organizations', id);
+  },
+
   async findOneAndUpdate(query, updates) {
     if (isConnected()) {
       return mongoose.models.Organization.findOneAndUpdate(query, updates, { new: true });
@@ -50,6 +57,13 @@ const Organization = {
 };
 
 const SiteManager = {
+  async find(query = {}) {
+    if (isConnected()) {
+      return mongoose.models.SiteManager.find(query).lean();
+    }
+    return jsonStore.find('site_managers', query);
+  },
+
   async findOne(query) {
     if (isConnected()) {
       return mongoose.models.SiteManager.findOne(query).lean();
@@ -137,6 +151,13 @@ const Registration = {
       return mongoose.models.Registration.create(data);
     }
     return jsonStore.create('registrations', data);
+  },
+
+  async findOneAndUpdate(query, updates) {
+    if (isConnected()) {
+      return mongoose.models.Registration.findOneAndUpdate(query, updates, { new: true });
+    }
+    return jsonStore.findOneAndUpdate('registrations', query, updates);
   },
 
   async countDocuments(query) {

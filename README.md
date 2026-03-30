@@ -10,14 +10,12 @@ Volunteer operations platform with:
 ```text
 volops/
 |-- client/         # frontend app
-|   |-- public/
 |   |-- src/
 |   |   |-- api/
 |   |   |-- components/
 |   |   `-- pages/
 |   `-- vite.config.ts
 |-- data/           # local JSON fallback storage
-|-- public/         # static fallback when client/dist is missing
 |-- server/         # backend app
 |   |-- config/
 |   |-- middleware/
@@ -64,7 +62,6 @@ Copy `.env.example` to `.env` and set values as needed:
 ```env
 PORT=3000
 MONGODB_URI=mongodb://localhost:27017/volops
-BASE_URL=http://localhost:3000
 ```
 
 If `MONGODB_URI` is missing or the connection fails, the backend uses `data/db.json`.

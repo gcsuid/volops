@@ -98,10 +98,10 @@ router.post('/:id/register', async (req, res) => {
     await Registration.create({
       drive_id: drive._id || drive.id,
       volunteer_id: volunteer._id || volunteer.id,
+      org_id: drive.org_id,
       vol_id: volunteer.vol_id,
       name: volunteer.name,
-      email: volunteer.email,
-      checked_in_at: new Date()
+      email: volunteer.email
     });
 
     return successResponse(res, { success: true });

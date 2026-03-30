@@ -81,7 +81,7 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', managerAuth, async (req, res) => {
   try {
-    const org = await Organization.findById(req.user.org_id?._id || req.user.org_id).lean();
+    const org = await Organization.findById(req.user.org_id?._id || req.user.org_id);
     return successResponse(res, {
       mgr_id: req.user.mgr_id,
       name: req.user.name,
@@ -96,10 +96,10 @@ router.get('/me', managerAuth, async (req, res) => {
 router.get('/drives', managerAuth, async (req, res) => {
   try {
     const managerId = req.user._id || req.user.id;
-    const drives = await Drive.find({ manager_id: managerId }).lean();
+    const drives = await Drive.find({ manager_id: managerId });
 
     const drivesWithStats = await Promise.all(drives.map(async (d) => {
-      const registrations = await Registration.find({ drive_id: d._id }).lean();
+      const registrations = await Registration.find({ drive_id: d._id });
       const checkedIn = registrations.filter(r => r.checked_in_at).length;
       const checkedOut = registrations.filter(r => r.checked_out_at).length;
       const durations = registrations.filter(r => r.duration_minutes).map(r => r.duration_minutes);
@@ -180,16 +180,20 @@ router.post('/drives/:id/start', managerAuth, async (req, res) => {
       return errorResponse(res, 'Drive already started');
     }
 
-    drive.status = 'active';
-    drive.qr_secret = generateQrSecret();
-    drive.started_at = new Date();
-    await drive.save();
+    const updatedDrive = await Drive.findOneAndUpdate(
+      { _id: drive._id || drive.id },
+      {
+        status: 'active',
+        qr_secret: generateQrSecret(),
+        started_at: new Date()
+      }
+    );
 
     return successResponse(res, {
-      id: drive._id,
-      name: drive.name,
-      status: drive.status,
-      qr_secret: drive.qr_secret
+      id: updatedDrive._id || updatedDrive.id,
+      name: updatedDrive.name,
+      status: updatedDrive.status,
+      qr_secret: updatedDrive.qr_secret
     });
   } catch (err) {
     return errorResponse(res, err.message, 500);
@@ -226,19 +230,27 @@ router.post('/drives/:id/end', managerAuth, async (req, res) => {
     for (const reg of uncheckedOut) {
       const durationMs = endTime - new Date(reg.checked_in_at);
       const durationMinutes = Math.round(durationMs / 60000);
-      reg.checked_out_at = endTime;
-      reg.duration_minutes = durationMinutes;
-      await reg.save();
+      await Registration.findOneAndUpdate(
+        { _id: reg._id || reg.id },
+        {
+          checked_out_at: endTime,
+          duration_minutes: durationMinutes
+        }
+      );
     }
 
-    drive.status = 'ended';
-    drive.ended_at = endTime;
-    await drive.save();
+    const updatedDrive = await Drive.findOneAndUpdate(
+      { _id: drive._id || drive.id },
+      {
+        status: 'ended',
+        ended_at: endTime
+      }
+    );
 
     return successResponse(res, {
-      id: drive._id,
-      name: drive.name,
-      status: drive.status,
+      id: updatedDrive._id || updatedDrive.id,
+      name: updatedDrive.name,
+      status: updatedDrive.status,
       auto_checked_out: uncheckedOut.length
     });
   } catch (err) {
@@ -261,7 +273,7 @@ router.get('/drives/:id/volunteers', managerAuth, async (req, res) => {
       return errorResponse(res, 'Drive not found', 404);
     }
 
-    const volunteers = await Registration.find({ drive_id: drive._id }).lean();
+    const volunteers = await Registration.find({ drive_id: drive._id });
 
     return successResponse(res, volunteers.map(v => ({
       id: v._id,

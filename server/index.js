@@ -45,15 +45,20 @@ app.use('/api/organization', organizationRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/drives', driveRoutes);
 
-const staticPath = fs.existsSync(path.join(projectRoot, 'client', 'dist'))
-  ? path.join(projectRoot, 'client', 'dist')
-  : path.join(projectRoot, 'public');
+const clientDistPath = path.join(projectRoot, 'client', 'dist');
+const hasClientBuild = fs.existsSync(path.join(clientDistPath, 'index.html'));
 
-app.use(express.static(staticPath));
+if (hasClientBuild) {
+  app.use(express.static(clientDistPath));
 
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(staticPath, 'index.html'));
-});
+  app.get(/^(?!\/api(?:\/|$)).*/, (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.status(503).send('Frontend build not found. Run "npm run client:build" from the project root.');
+  });
+}
 
 async function startServer() {
   await connectDB();

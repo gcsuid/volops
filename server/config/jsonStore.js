@@ -27,11 +27,25 @@ function loadDb() {
 
 loadDb();
 
+function matchesValue(actual, expected) {
+  if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+    if (Object.prototype.hasOwnProperty.call(expected, '$in')) {
+      return expected.$in.some((value) => actual === value);
+    }
+    if (Object.prototype.hasOwnProperty.call(expected, '$ne')) {
+      return actual !== expected.$ne;
+    }
+  }
+  return actual === expected;
+}
+
+function matchesQuery(item, query) {
+  return Object.entries(query).every(([key, value]) => matchesValue(item[key], value));
+}
+
 function findOne(collection, query) {
   const col = db[collection] || [];
-  return col.find(item => {
-    return Object.entries(query).every(([key, value]) => item[key] === value);
-  });
+  return col.find(item => matchesQuery(item, query));
 }
 
 function findById(collection, id) {
@@ -42,9 +56,7 @@ function findById(collection, id) {
 function find(collection, query = {}) {
   const col = db[collection] || [];
   if (Object.keys(query).length === 0) return col;
-  return col.filter(item => {
-    return Object.entries(query).every(([key, value]) => item[key] === value);
-  });
+  return col.filter(item => matchesQuery(item, query));
 }
 
 function create(collection, data) {
@@ -63,9 +75,7 @@ function create(collection, data) {
 
 function findOneAndUpdate(collection, query, updates) {
   const col = db[collection] || [];
-  const index = col.findIndex(item => {
-    return Object.entries(query).every(([key, value]) => item[key] === value);
-  });
+  const index = col.findIndex(item => matchesQuery(item, query));
   if (index === -1) return null;
   col[index] = { ...col[index], ...updates, updatedAt: new Date().toISOString() };
   db[collection] = col;
