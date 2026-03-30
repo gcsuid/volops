@@ -1,4 +1,8 @@
 node_modules/
+client/node_modules/
+client/dist/
+dist/
 interview.md
+nul
 .env
 data/*.json

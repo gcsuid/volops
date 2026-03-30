@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 let db = { volunteers: [], organizations: [], site_managers: [], drives: [], registrations: [] };
-const dataPath = path.join(__dirname, '..', 'data', 'db.json');
+const dataPath = path.join(__dirname, '..', '..', 'data', 'db.json');
 
 function saveDb() {
   try {

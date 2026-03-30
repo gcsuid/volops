@@ -1,10 +1,14 @@
 {
   "name": "volops",
   "version": "1.0.0",
-  "description": "VolOps – volunteer operations platform",
+  "description": "VolOps - volunteer operations platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "server": "node server.js",
+    "client:dev": "npm run dev --prefix client",
+    "client:build": "npm run build --prefix client",
+    "client:lint": "npm run lint --prefix client"
   },
   "license": "ISC",
   "dependencies": {
