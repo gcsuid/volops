@@ -7,9 +7,9 @@ const { orgAuth } = require('../middleware/auth');
 
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, location } = req.body;
+    const { name, email, location, password } = req.body;
 
-    if (!name || !email || !location) {
+    if (!name || !email || !location || !password) {
       return errorResponse(res, 'All fields are required');
     }
 
@@ -28,6 +28,7 @@ router.post('/signup', async (req, res) => {
       name,
       email,
       location,
+      password,
       token
     });
 

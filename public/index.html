@@ -32,6 +32,11 @@
           <strong id="signup-id-display">—</strong>
           <small id="success-note">Save this ID – you will use it to log in.</small>
         </div>
+        <div class="id-banner hidden" id="signup-code-banner">
+          <p>Your Organisation Code</p>
+          <strong id="signup-code-display">—</strong>
+          <small>Use this code along with your Org ID to log in.</small>
+        </div>
         <div class="alert alert-success" id="signup-success-msg"></div>
         <button class="btn btn-primary" id="goto-btn" onclick="goToPortal()">Go to Portal →</button>
       </div>
@@ -61,6 +66,7 @@
           <div class="form-group"><label for="org-name">Organisation Name</label><input type="text" id="org-name" placeholder="e.g. Green Earth Foundation" required /></div>
           <div class="form-group"><label for="org-email">Contact Email</label><input type="email" id="org-email" placeholder="contact@greenearth.org" required /></div>
           <div class="form-group"><label for="org-location">Location</label><input type="text" id="org-location" placeholder="e.g. Mumbai, Maharashtra" required /></div>
+          <div class="form-group"><label for="org-password">Password</label><input type="password" id="org-password" placeholder="Create a password" required /></div>
           <button type="submit" class="btn btn-primary" id="org-signup-btn"><span>Register Organisation</span></button>
         </form>
       </div>
@@ -139,11 +145,10 @@
       } else if (role === 'manager') {
         body = { name: document.getElementById('mgr-name').value.trim(), email: document.getElementById('mgr-email').value.trim(), org_id: document.getElementById('mgr-org-id').value.trim().toUpperCase() };
       } else {
-        body = { name: document.getElementById('org-name').value.trim(), email: document.getElementById('org-email').value.trim(), location: document.getElementById('org-location').value.trim() };
+        body = { name: document.getElementById('org-name').value.trim(), email: document.getElementById('org-email').value.trim(), location: document.getElementById('org-location').value.trim(), password: document.getElementById('org-password').value };
       }
 
       const endpoint = role === 'volunteer' ? '/api/volunteer/signup' : role === 'manager' ? '/api/manager/signup' : '/api/organization/signup';
-      const roleForStorage = role === 'org' ? 'organization' : role;
 
       fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(r => r.json())
@@ -167,8 +172,10 @@
             localStorage.setItem('vo_org_id', data.org_id);
             localStorage.setItem('vo_org_code', data.org_code);
             document.getElementById('signup-id-display').textContent = data.org_id;
+            document.getElementById('signup-code-display').textContent = data.org_code;
             document.getElementById('success-label').textContent = 'Your Organisation ID';
-            document.getElementById('success-note').textContent = `Org Code: ${data.org_code}. Use both to log in.`;
+            document.getElementById('success-note').textContent = 'Use your Org ID and Code to log in.';
+            document.getElementById('signup-code-banner').classList.remove('hidden');
           }
 
           document.getElementById('signup-success-msg').textContent = `Welcome, ${data.name}!`;
@@ -208,7 +215,7 @@
           localStorage.setItem('vo_name', data.name);
           if (role === 'volunteer') localStorage.setItem('vo_vol_id', data.vol_id);
           else if (role === 'manager') localStorage.setItem('vo_mgr_id', data.mgr_id);
-          else { localStorage.setItem('vo_org_id', data.org_id); }
+          else { localStorage.setItem('vo_org_id', data.org_id); localStorage.setItem('vo_org_code', data.org_code); }
           window.location.href = getPortalUrl(role);
         })
         .catch(() => { errEl.textContent = 'Network error. Please try again.'; errEl.classList.remove('hidden'); })
