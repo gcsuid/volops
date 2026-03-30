@@ -32,11 +32,6 @@
           <strong id="signup-id-display">—</strong>
           <small id="success-note">Save this ID – you will use it to log in.</small>
         </div>
-        <div class="id-banner hidden" id="signup-code-banner">
-          <p>Your Organisation Code</p>
-          <strong id="signup-code-display">—</strong>
-          <small>Use this code along with your Org ID to log in.</small>
-        </div>
         <div class="alert alert-success" id="signup-success-msg"></div>
         <button class="btn btn-primary" id="goto-btn" onclick="goToPortal()">Go to Portal →</button>
       </div>
@@ -89,7 +84,7 @@
 
       <form id="form-org-login" class="hidden" onsubmit="handleLogin(event, 'organization')">
         <div class="form-group"><label for="login-org-id">Organisation ID</label><input type="text" id="login-org-id" placeholder="ORG-XXXXXX" required /></div>
-        <div class="form-group"><label for="login-org-code">Organisation Code</label><input type="text" id="login-org-code" placeholder="10-digit code" required /></div>
+        <div class="form-group"><label for="login-org-email">Email</label><input type="email" id="login-org-email" placeholder="contact@greenearth.org" required /></div>
         <button type="submit" class="btn btn-primary" id="org-login-btn"><span>Login as Organisation</span></button>
       </form>
     </div>
@@ -170,12 +165,9 @@
             document.getElementById('success-note').textContent = `Your password is: ${data.password}. Save this!`;
           } else {
             localStorage.setItem('vo_org_id', data.org_id);
-            localStorage.setItem('vo_org_code', data.org_code);
             document.getElementById('signup-id-display').textContent = data.org_id;
-            document.getElementById('signup-code-display').textContent = data.org_code;
             document.getElementById('success-label').textContent = 'Your Organisation ID';
-            document.getElementById('success-note').textContent = 'Use your Org ID and Code to log in.';
-            document.getElementById('signup-code-banner').classList.remove('hidden');
+            document.getElementById('success-note').textContent = 'Use your Org ID and email to log in.';
           }
 
           document.getElementById('signup-success-msg').textContent = `Welcome, ${data.name}!`;
@@ -201,7 +193,7 @@
       } else if (role === 'manager') {
         body = { mgr_id: document.getElementById('login-mgr-id').value.trim().toUpperCase(), password: document.getElementById('login-mgr-password').value };
       } else {
-        body = { org_id: document.getElementById('login-org-id').value.trim().toUpperCase(), org_code: document.getElementById('login-org-code').value.trim() };
+        body = { org_id: document.getElementById('login-org-id').value.trim().toUpperCase(), email: document.getElementById('login-org-email').value.trim() };
       }
 
       const endpoint = role === 'volunteer' ? '/api/volunteer/login' : role === 'manager' ? '/api/manager/login' : '/api/organization/login';
@@ -215,7 +207,7 @@
           localStorage.setItem('vo_name', data.name);
           if (role === 'volunteer') localStorage.setItem('vo_vol_id', data.vol_id);
           else if (role === 'manager') localStorage.setItem('vo_mgr_id', data.mgr_id);
-          else { localStorage.setItem('vo_org_id', data.org_id); localStorage.setItem('vo_org_code', data.org_code); }
+          else { localStorage.setItem('vo_org_id', data.org_id); }
           window.location.href = getPortalUrl(role);
         })
         .catch(() => { errEl.textContent = 'Network error. Please try again.'; errEl.classList.remove('hidden'); })

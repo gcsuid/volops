@@ -2,7 +2,6 @@ const { mongoose } = require('../config/db');
 
 const organizationSchema = new mongoose.Schema({
   org_id: { type: String, required: true, unique: true },
-  org_code: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   location: { type: String, required: true },

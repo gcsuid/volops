@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Organization, Drive, Registration } = require('../models');
-const { generateId, generateToken, generateOrgCode } = require('../utils/generators');
+const { generateId, generateToken } = require('../utils/generators');
 const { successResponse, errorResponse } = require('../utils/helpers');
 const { orgAuth } = require('../middleware/auth');
 
@@ -19,12 +19,10 @@ router.post('/signup', async (req, res) => {
     }
 
     const orgId = generateId('ORG');
-    const orgCode = generateOrgCode();
     const token = generateToken();
 
     const org = await Organization.create({
       org_id: orgId,
-      org_code: orgCode,
       name,
       email,
       location,
@@ -34,7 +32,6 @@ router.post('/signup', async (req, res) => {
 
     return successResponse(res, {
       org_id: org.org_id,
-      org_code: org.org_code,
       token: org.token,
       name: org.name
     });
@@ -45,13 +42,13 @@ router.post('/signup', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { org_id, org_code } = req.body;
+    const { org_id, email } = req.body;
 
-    if (!org_id || !org_code) {
-      return errorResponse(res, 'Org ID and code required');
+    if (!org_id || !email) {
+      return errorResponse(res, 'Org ID and email required');
     }
 
-    const org = await Organization.findOne({ org_id, org_code });
+    const org = await Organization.findOne({ org_id, email });
     if (!org) {
       return errorResponse(res, 'Invalid credentials', 401);
     }
