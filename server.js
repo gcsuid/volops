@@ -35,15 +35,21 @@ const managerRoutes = require('./routes/manager');
 const driveRoutes = require('./routes/drive');
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/volunteer', volunteerRoutes);
 app.use('/api/organization', organizationRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/drives', driveRoutes);
 
+const staticPath = fs.existsSync(path.join(__dirname, 'client', 'dist'))
+  ? path.join(__dirname, 'client', 'dist')
+  : path.join(__dirname, 'public');
+
+console.log('Static path:', staticPath);
+app.use(express.static(staticPath));
+
 app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(staticPath, 'index.html'));
 });
 
 async function startServer() {

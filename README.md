@@ -21,10 +21,19 @@ cd client && npm install && cd ..
 ### Running
 
 ```bash
-# Start backend (port 3000)
+# Build frontend (for production)
+cd client && npm run build && cd ..
+
+# Start backend (port 3000) - serves frontend from client/dist
+npm start
+```
+
+For development with hot reload:
+```bash
+# Terminal 1: Start backend
 npm start
 
-# Start frontend (port 5173) - in separate terminal
+# Terminal 2: Start frontend dev server
 cd client && npm run dev
 ```
 
@@ -50,12 +59,14 @@ volops/
 ├── routes/               # API endpoints
 ├── middleware/           # Auth middleware
 ├── utils/                # Helpers & generators
-├── public/               # Dashboard pages (HTML)
 └── client/               # React frontend (Vite)
     └── src/
-        ├── components/   # UI components
         ├── api/          # API client
-        └── App.tsx       # Auth pages
+        ├── components/   # UI components
+        └── pages/        # Dashboard pages
+            ├── VolunteerDashboard.tsx
+            ├── ManagerDashboard.tsx
+            └── OrganizationDashboard.tsx
 ```
 
 ---
@@ -64,9 +75,9 @@ volops/
 
 | Role | Signup | Login | Dashboard |
 |------|--------|-------|----------|
-| **Volunteer** | Name, Email, Age, Gender, Password | Volunteer ID + Password | View registered drives |
-| **Site Manager** | Name, Email, Organisation ID | Manager ID + Password | Create/manage drives, QR codes |
-| **Organisation** | Name, Email, Location, Password | Org ID + Email | View all drives, download CSV |
+| **Volunteer** | Name, Email, Age, Gender, Password | Email only | View drives, clock in/out, past activity |
+| **Site Manager** | Name, Email, Organisation ID, Password | Email + Org ID | Create/manage drives, QR codes, view volunteers |
+| **Organisation** | Name, Email, Location, Phone, Password | Email + Org ID | View all drives, manage managers, download CSV |
 
 ---
 
@@ -74,25 +85,35 @@ volops/
 
 ### Volunteer
 - `POST /api/volunteer/signup` - Create volunteer account
-- `POST /api/volunteer/login` - Login with ID + password
-- `GET /api/volunteer/drives` - Get registered drives
+- `POST /api/volunteer/login` - Login with email
+- `GET /api/volunteer/me` - Get profile (auth required)
+- `GET /api/volunteer/drives` - Get registered drives with check-in/out times
+- `GET /api/volunteer/current` - Get currently active check-in
+- `POST /api/volunteer/checkin` - Clock in to a drive
+- `POST /api/volunteer/checkout` - Clock out from a drive
 
 ### Site Manager
 - `POST /api/manager/signup` - Register with Org ID
-- `POST /api/manager/login` - Login with ID + password
+- `POST /api/manager/login` - Login with email + org_id
+- `GET /api/manager/me` - Get profile (auth required)
 - `GET /api/manager/drives` - List manager's drives
+- `GET /api/manager/drives/:id/volunteers` - List checked-in volunteers
 - `POST /api/manager/drives` - Create new drive (draft)
 - `POST /api/manager/drives/:id/start` - Start drive, generate QR
-- `POST /api/manager/drives/:id/end` - End drive
+- `POST /api/manager/drives/:id/end` - End drive (auto clock-out all volunteers)
+- `GET /api/manager/stats` - Get drive statistics
 
 ### Organisation
 - `POST /api/organization/signup` - Register organisation
-- `POST /api/organization/login` - Login with Org ID + Email
-- `GET /api/org/drives` - List all drives
-- `GET /api/org/drives/:id/attendees` - Get attendees
-- `GET /api/org/drives/:id/download` - Download CSV
+- `POST /api/organization/login` - Login with email + org_id
+- `GET /api/organization/me` - Get profile (auth required)
+- `GET /api/organization/managers` - List all managers
+- `GET /api/organization/drives` - List all drives across managers
+- `GET /api/organization/drives/:id/download` - Download CSV of attendees
+- `GET /api/organization/stats` - Get overall statistics
 
 ### Drive (Public)
+- `GET /api/drives` - List all drives
 - `GET /api/drives/:id` - Get drive info
 - `GET /api/drives/:id/join?secret=` - Verify QR code
 - `POST /api/drives/:id/register` - Register volunteer
@@ -106,8 +127,20 @@ volops/
 3. **Manager** creates a drive (draft status)
 4. **Manager** starts the drive → QR code generated
 5. **Volunteer** signs up, scans QR → registered for drive
-6. **Manager** ends drive when done
-7. **Organisation** views all drives and downloads attendee data
+6. **Volunteer** clocks in when arriving at drive location
+7. **Volunteer** clocks out when leaving → duration calculated
+8. **Manager** ends drive when done → all unchecked volunteers auto clocked out
+9. **Organisation** views all drives and downloads attendee data as CSV
+
+---
+
+## Clock-in/Clock-out System
+
+- Volunteers can check in to active drives
+- System tracks check-in and check-out timestamps
+- Duration is automatically calculated when checking out
+- Managers can end a drive, which auto clock-outs all checked-in volunteers
+- Volunteers can see their past drives with total hours contributed
 
 ---
 

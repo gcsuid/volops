@@ -3,6 +3,21 @@ const router = express.Router();
 const { Drive, Volunteer, Registration } = require('../models');
 const { successResponse, errorResponse } = require('../utils/helpers');
 
+router.get('/', async (req, res) => {
+  try {
+    const drives = await Drive.find({});
+    return successResponse(res, drives.map(d => ({
+      id: d._id || d.id,
+      name: d.name,
+      location: d.location,
+      status: d.status,
+      date: d.date
+    })));
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const drive = await Drive.findById(req.params.id);

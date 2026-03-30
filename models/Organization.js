@@ -5,6 +5,8 @@ const organizationSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   location: { type: String, required: true },
+  phone: { type: String, default: '' },
+  password: { type: String, default: '' },
   token: { type: String },
   role: { type: String, default: 'organization' }
 }, { timestamps: true });

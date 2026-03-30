@@ -7,6 +7,7 @@ const driveSchema = new mongoose.Schema({
   name: { type: String, required: true },
   location: { type: String, default: '' },
   description: { type: String, default: '' },
+  date: { type: Date },
   status: { type: String, enum: ['draft', 'active', 'ended'], default: 'draft' },
   qr_secret: { type: String },
   started_at: { type: Date },
