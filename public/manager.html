@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VolOps – Site Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dash-root manager-theme">
+
+  <header class="dash-header">
+    <div class="dash-header-left">
+      <span class="dash-brand">VolOps</span>
+      <span class="role-badge role-manager">Site Manager</span>
+    </div>
+    <div class="dash-header-right">
+      <span class="id-badge" id="header-mgr-id">—</span>
+      <button class="btn btn-outline btn-sm" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="dash-main">
+    <div class="dash-greeting">
+      <h2 id="greeting-text">Welcome!</h2>
+      <p>Create and manage volunteer drives for your organisation.</p>
+    </div>
+
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Drives</div>
+        <div class="stat-value" id="stat-drives">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Drives</div>
+        <div class="stat-value stat-active" id="stat-active">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Volunteers</div>
+        <div class="stat-value" id="stat-volunteers">0</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h3>My Drives</h3>
+      <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Drive</button>
+    </div>
+
+    <div class="alert alert-error hidden" id="drives-error"></div>
+
+    <div class="drives-table-wrap" id="drives-table-wrap">
+      <table class="drives-table" id="drives-table">
+        <thead>
+          <tr>
+            <th>Drive Name</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Volunteers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="drives-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="modal-overlay hidden" id="create-modal" onclick="closeModalOnBackdrop(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Create New Drive</h3>
+        <button class="modal-close" onclick="closeCreateModal()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-error hidden" id="create-error"></div>
+        <form id="create-form" onsubmit="handleCreateDrive(event)">
+          <div class="form-group"><label for="drive-name">Drive Name *</label><input type="text" id="drive-name" placeholder="e.g. Beach Cleanup Drive" required /></div>
+          <div class="form-group"><label for="drive-location">Location</label><input type="text" id="drive-location" placeholder="e.g. Juhu Beach, Mumbai" /></div>
+          <div class="form-group"><label for="drive-desc">Description</label><textarea id="drive-desc" rows="3" placeholder="Brief description of the drive..."></textarea></div>
+          <div class="modal-footer" style="padding:0;border:none;justify-content:flex-end;gap:10px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="closeCreateModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Create Drive</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="qr-modal" onclick="closeModalOnBackdrop(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>QR Code for Drive</h3>
+        <button class="modal-close" onclick="closeQrModal()">&#x2715;</button>
+      </div>
+      <div class="modal-body" style="text-align:center;">
+        <p id="qr-drive-name" style="font-weight:600;margin-bottom:16px;">—</p>
+        <div id="qr-container" style="background:#fff;padding:20px;display:inline-block;border-radius:10px;margin-bottom:16px;"></div>
+        <p style="color:var(--text-muted);font-size:.85rem;">Volunteers can scan this QR to register for the drive.</p>
+        <div id="qr-link" style="margin-top:12px;padding:10px;background:var(--bg);border-radius:6px;font-size:.8rem;word-break:break-all;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('vo_token');
+    const role = localStorage.getItem('vo_role');
+    const mgrId = localStorage.getItem('vo_mgr_id');
+    const name = localStorage.getItem('vo_name');
+
+    if (!token || role !== 'manager') {
+      window.location.replace('/');
+    }
+
+    document.getElementById('header-mgr-id').textContent = mgrId || '';
+    document.getElementById('greeting-text').textContent = `Welcome, ${name}!`;
+
+    async function loadDrives() {
+      const errEl = document.getElementById('drives-error');
+      try {
+        const res = await fetch('/api/manager/drives', { headers: { 'x-session-token': token } });
+        if (res.status === 401) { handleLogout(); return; }
+        const drives = await res.json();
+        renderDrives(drives);
+        updateStats(drives);
+      } catch (err) {
+        errEl.textContent = 'Failed to load drives.';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    function updateStats(drives) {
+      document.getElementById('stat-drives').textContent = drives.length;
+      document.getElementById('stat-active').textContent = drives.filter(d => d.status === 'active').length;
+      document.getElementById('stat-volunteers').textContent = drives.reduce((s, d) => s + (d.attendee_count || 0), 0);
+    }
+
+    function renderDrives(drives) {
+      const tbody = document.getElementById('drives-tbody');
+      if (!drives || drives.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No drives yet. Create your first drive!</p></div></td></tr>';
+        return;
+      }
+      drives.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      tbody.innerHTML = drives.map(d => `
+        <tr>
+          <td><strong>${escHtml(d.name)}</strong></td>
+          <td>${escHtml(d.location || '—')}</td>
+          <td><span class="badge badge-${d.status === 'active' ? 'success' : d.status === 'ended' ? 'muted' : 'warning'}">${d.status}</span></td>
+          <td>${d.attendee_count || 0}</td>
+          <td>
+            <div class="action-btns">
+              ${d.status === 'draft' ? `<button class="btn btn-success btn-sm" onclick="startDrive('${d.id}')">Start Drive</button>` : ''}
+              ${d.status === 'active' ? `<button class="btn btn-primary btn-sm" onclick="showQr('${d.id}', '${escHtml(d.name)}', '${d.qr_secret}')">View QR</button><button class="btn btn-danger btn-sm" onclick="endDrive('${d.id}')">End Drive</button>` : ''}
+              ${d.status === 'ended' ? `<span style="color:var(--text-muted);font-size:.8rem;">Completed</span>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openCreateModal() {
+      document.getElementById('create-modal').classList.remove('hidden');
+      document.getElementById('create-error').classList.add('hidden');
+      document.getElementById('create-form').reset();
+    }
+
+    function closeCreateModal() {
+      document.getElementById('create-modal').classList.add('hidden');
+    }
+
+    async function handleCreateDrive(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('create-error');
+      const name = document.getElementById('drive-name').value.trim();
+      const location = document.getElementById('drive-location').value.trim();
+      const description = document.getElementById('drive-desc').value.trim();
+
+      try {
+        const res = await fetch('/api/manager/drives', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+          body: JSON.stringify({ name, location, description })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error || 'Failed to create drive'; errEl.classList.remove('hidden'); return; }
+        closeCreateModal();
+        loadDrives();
+      } catch (err) { errEl.textContent = 'Network error.'; errEl.classList.remove('hidden'); }
+    }
+
+    async function startDrive(driveId) {
+      try {
+        const res = await fetch(`/api/manager/drives/${driveId}/start`, { method: 'POST', headers: { 'x-session-token': token } });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to start drive'); return; }
+        loadDrives();
+      } catch (err) { alert('Failed to start drive'); }
+    }
+
+    async function endDrive(driveId) {
+      if (!confirm('End this drive? Volunteers will no longer be able to register.')) return;
+      try {
+        const res = await fetch(`/api/manager/drives/${driveId}/end`, { method: 'POST', headers: { 'x-session-token': token } });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to end drive'); return; }
+        loadDrives();
+      } catch (err) { alert('Failed to end drive'); }
+    }
+
+    function showQr(driveId, driveName, qrSecret) {
+      document.getElementById('qr-modal').classList.remove('hidden');
+      document.getElementById('qr-drive-name').textContent = driveName;
+      document.getElementById('qr-container').innerHTML = '';
+      document.getElementById('qr-link').textContent = `Drive ID: ${driveId}\nSecret: ${qrSecret}`;
+
+      const url = `${window.location.origin}/join.html?drive=${driveId}&secret=${qrSecret}`;
+      document.getElementById('qr-link').textContent = `URL: ${url}`;
+
+      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      const img = document.createElement('img');
+      img.src = qr;
+      img.alt = 'QR Code';
+      img.style = 'width:200px;height:200px;';
+      document.getElementById('qr-container').appendChild(img);
+    }
+
+    function closeQrModal() {
+      document.getElementById('qr-modal').classList.add('hidden');
+    }
+
+    function closeModalOnBackdrop(e) {
+      if (e.target.id === 'create-modal' || e.target.id === 'qr-modal') {
+        e.target.classList.add('hidden');
+      }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('vo_token');
+      localStorage.removeItem('vo_role');
+      localStorage.removeItem('vo_mgr_id');
+      localStorage.removeItem('vo_name');
+      window.location.replace('/');
+    }
+
+    function escHtml(str) {
+      return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    loadDrives();
+  </script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VolOps – Volunteer Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dash-root volunteer-theme">
+
+  <header class="dash-header">
+    <div class="dash-header-left">
+      <span class="dash-brand">VolOps</span>
+      <span class="role-badge role-volunteer">Volunteer</span>
+    </div>
+    <div class="dash-header-right">
+      <span class="id-badge" id="header-vol-id">—</span>
+      <button class="btn btn-outline btn-sm" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="dash-main">
+    <div class="dash-greeting">
+      <h2 id="greeting-text">Welcome!</h2>
+      <p>Scan a QR code at a drive site to register, or view your registered drives below.</p>
+    </div>
+
+    <div class="scan-section">
+      <button class="btn btn-scan" onclick="openScanModal()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Scan QR Code to Register
+      </button>
+    </div>
+
+    <div class="section-header">
+      <h3>My Registered Drives</h3>
+      <button class="btn btn-outline btn-sm" onclick="loadDrives()">Refresh</button>
+    </div>
+
+    <div class="alert alert-error hidden" id="drives-error"></div>
+
+    <div class="drives-table-wrap" id="drives-table-wrap">
+      <table class="drives-table" id="drives-table">
+        <thead>
+          <tr>
+            <th>Drive Name</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Registered</th>
+          </tr>
+        </thead>
+        <tbody id="drives-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted);">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="modal-overlay hidden" id="scan-modal" onclick="closeModalOnBackdrop(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Register for Drive</h3>
+        <button class="modal-close" onclick="closeScanModal()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div id="scan-input-section">
+          <p style="color:var(--text-muted);margin-bottom:16px;">Enter the Drive ID and QR Secret from the scan, or scan directly if on mobile.</p>
+          <div class="form-group"><label for="scan-drive-id">Drive ID</label><input type="text" id="scan-drive-id" placeholder="Drive ID from QR" /></div>
+          <div class="form-group"><label for="scan-secret">QR Secret</label><input type="text" id="scan-secret" placeholder="Secret from QR" /></div>
+          <button class="btn btn-primary" onclick="manualJoin()">Register</button>
+        </div>
+        <div id="scan-result-section" class="hidden">
+          <div class="drive-preview">
+            <h4 id="preview-drive-name">—</h4>
+            <p id="preview-drive-location">—</p>
+          </div>
+          <p style="color:var(--text-muted);margin:16px 0;">You are registering as:</p>
+          <div class="profile-summary">
+            <p><strong id="preview-name">—</strong></p>
+            <p id="preview-email">—</p>
+          </div>
+          <button class="btn btn-success" onclick="confirmRegistration()">Confirm Registration</button>
+        </div>
+        <div id="scan-success-section" class="hidden">
+          <div class="success-icon">&#x2713;</div>
+          <h4>Registered Successfully!</h4>
+          <p style="color:var(--text-muted);margin-top:8px;">You have been registered for this drive.</p>
+          <button class="btn btn-primary" onclick="closeScanModal(); loadDrives();">View My Drives</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('vo_token');
+    const role = localStorage.getItem('vo_role');
+    const volId = localStorage.getItem('vo_vol_id');
+    const name = localStorage.getItem('vo_name');
+
+    if (!token || role !== 'volunteer') {
+      window.location.replace('/');
+    }
+
+    document.getElementById('header-vol-id').textContent = volId || '';
+    document.getElementById('greeting-text').textContent = `Welcome, ${name}!`;
+    document.getElementById('preview-name').textContent = name;
+
+    async function loadDrives() {
+      const errEl = document.getElementById('drives-error');
+      try {
+        const res = await fetch('/api/volunteer/drives', { headers: { 'x-session-token': token } });
+        if (res.status === 401) { handleLogout(); return; }
+        const drives = await res.json();
+        renderDrives(drives);
+      } catch (err) {
+        errEl.textContent = 'Failed to load drives.';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    function renderDrives(drives) {
+      const tbody = document.getElementById('drives-tbody');
+      if (!drives || drives.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>No registered drives yet. Scan a QR code to register!</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = drives.map(d => `
+        <tr>
+          <td><strong>${escHtml(d.name)}</strong></td>
+          <td>${escHtml(d.location || '—')}</td>
+          <td><span class="badge badge-${d.status === 'active' ? 'success' : d.status === 'ended' ? 'muted' : 'warning'}">${d.status}</span></td>
+          <td>${formatDate(d.registered_at)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function formatDate(str) {
+      if (!str) return '—';
+      return new Date(str).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    }
+
+    function openScanModal() {
+      document.getElementById('scan-modal').classList.remove('hidden');
+      document.getElementById('scan-input-section').classList.remove('hidden');
+      document.getElementById('scan-result-section').classList.add('hidden');
+      document.getElementById('scan-success-section').classList.add('hidden');
+      document.getElementById('scan-drive-id').value = '';
+      document.getElementById('scan-secret').value = '';
+    }
+
+    function closeScanModal() {
+      document.getElementById('scan-modal').classList.add('hidden');
+    }
+
+    function closeModalOnBackdrop(e) {
+      if (e.target === document.getElementById('scan-modal')) closeScanModal();
+    }
+
+    async function manualJoin() {
+      const driveId = document.getElementById('scan-drive-id').value.trim();
+      const secret = document.getElementById('scan-secret').value.trim();
+      if (!driveId || !secret) { alert('Please enter both Drive ID and QR Secret'); return; }
+
+      try {
+        const res = await fetch(`/api/drives/${driveId}/join?secret=${encodeURIComponent(secret)}`);
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Invalid QR code'); return; }
+
+        document.getElementById('preview-drive-name').textContent = data.name;
+        document.getElementById('preview-drive-location').textContent = data.location;
+        document.getElementById('scan-input-section').classList.add('hidden');
+        document.getElementById('scan-result-section').classList.remove('hidden');
+
+        window._pendingDrive = { id: driveId, secret: secret };
+      } catch (err) { alert('Failed to verify drive. Check the ID and secret.'); }
+    }
+
+    async function confirmRegistration() {
+      if (!window._pendingDrive) return;
+      const { id, secret } = window._pendingDrive;
+
+      try {
+        const res = await fetch(`/api/drives/${id}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret, vol_id: volId })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Registration failed'); return; }
+
+        document.getElementById('scan-result-section').classList.add('hidden');
+        document.getElementById('scan-success-section').classList.remove('hidden');
+      } catch (err) { alert('Registration failed. Please try again.'); }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('vo_token');
+      localStorage.removeItem('vo_role');
+      localStorage.removeItem('vo_vol_id');
+      localStorage.removeItem('vo_name');
+      window.location.replace('/');
+    }
+
+    function escHtml(str) {
+      return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    loadDrives();
+  </script>
+</body>
+</html>

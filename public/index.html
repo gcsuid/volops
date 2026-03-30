@@ -3,180 +3,218 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VolOps – Organisation Portal</title>
+  <title>VolOps – Volunteer Operations Platform</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="auth-root">
 
   <div class="auth-card">
-    <!-- Logo -->
     <div class="auth-logo">
       <h1>VolOps</h1>
-      <p>Organisation Portal</p>
+      <p>Volunteer Operations Platform</p>
     </div>
 
-    <!-- Tabs -->
+    <div class="role-selector">
+      <button class="role-btn active" data-role="volunteer" onclick="selectRole('volunteer')">Volunteer</button>
+      <button class="role-btn" data-role="manager" onclick="selectRole('manager')">Site Manager</button>
+      <button class="role-btn" data-role="organization" onclick="selectRole('organization')">Organisation</button>
+    </div>
+
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-signup" onclick="showTab('signup')">Sign Up</button>
       <button class="auth-tab" id="tab-login" onclick="showTab('login')">Login</button>
     </div>
 
-    <!-- ── SIGNUP FORM ──────────────────────────────────────────────────── -->
     <div id="panel-signup">
-      <!-- Success banner shown after signup -->
       <div id="signup-success" class="hidden">
-        <div class="company-id-banner">
-          <p>Your unique Company ID</p>
-          <strong id="signup-company-id">—</strong>
-          <small>Save this ID – you will use it to log in every time.</small>
+        <div class="id-banner">
+          <p id="success-label">Your ID</p>
+          <strong id="signup-id-display">—</strong>
+          <small id="success-note">Save this ID – you will use it to log in.</small>
         </div>
         <div class="alert alert-success" id="signup-success-msg"></div>
-        <button class="btn btn-primary" onclick="goToDashboard()">Go to Dashboard →</button>
+        <button class="btn btn-primary" id="goto-btn" onclick="goToPortal()">Go to Portal →</button>
       </div>
 
-      <!-- Signup form -->
       <div id="signup-form-wrap">
         <div class="alert alert-error hidden" id="signup-error"></div>
-        <form id="signup-form" onsubmit="handleSignup(event)">
-          <div class="form-group">
-            <label for="signup-email">Organisation Email</label>
-            <input type="email" id="signup-email" placeholder="contact@yourorg.com" required />
+
+        <form id="form-volunteer-signup" onsubmit="handleSignup(event, 'volunteer')">
+          <div class="form-group"><label for="vol-name">Full Name</label><input type="text" id="vol-name" placeholder="e.g. Priya Sharma" required /></div>
+          <div class="form-group"><label for="vol-email">Email</label><input type="email" id="vol-email" placeholder="priya@example.com" required /></div>
+          <div class="form-row">
+            <div class="form-group"><label for="vol-age">Age</label><input type="number" id="vol-age" min="10" max="100" placeholder="25" required /></div>
+            <div class="form-group"><label for="vol-gender">Gender</label><select id="vol-gender" required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
           </div>
-          <div class="form-group">
-            <label for="signup-poc">Point of Contact Name</label>
-            <input type="text" id="signup-poc" placeholder="e.g. Riya Kapoor" required />
-          </div>
-          <button type="submit" class="btn btn-primary" id="signup-btn">
-            <span id="signup-btn-text">Create Organisation</span>
-          </button>
+          <div class="form-group"><label for="vol-password">Password</label><input type="password" id="vol-password" placeholder="Create a password" required /></div>
+          <button type="submit" class="btn btn-primary" id="vol-signup-btn"><span>Create Account</span></button>
+        </form>
+
+        <form id="form-manager-signup" class="hidden" onsubmit="handleSignup(event, 'manager')">
+          <div class="form-group"><label for="mgr-name">Full Name</label><input type="text" id="mgr-name" placeholder="e.g. Amit Patel" required /></div>
+          <div class="form-group"><label for="mgr-email">Email</label><input type="email" id="mgr-email" placeholder="amit@org.com" required /></div>
+          <div class="form-group"><label for="mgr-org-id">Organisation ID</label><input type="text" id="mgr-org-id" placeholder="ORG-XXXXXX" required /></div>
+          <button type="submit" class="btn btn-primary" id="mgr-signup-btn"><span>Register as Manager</span></button>
+        </form>
+
+        <form id="form-org-signup" class="hidden" onsubmit="handleSignup(event, 'organization')">
+          <div class="form-group"><label for="org-name">Organisation Name</label><input type="text" id="org-name" placeholder="e.g. Green Earth Foundation" required /></div>
+          <div class="form-group"><label for="org-email">Contact Email</label><input type="email" id="org-email" placeholder="contact@greenearth.org" required /></div>
+          <div class="form-group"><label for="org-location">Location</label><input type="text" id="org-location" placeholder="e.g. Mumbai, Maharashtra" required /></div>
+          <button type="submit" class="btn btn-primary" id="org-signup-btn"><span>Register Organisation</span></button>
         </form>
       </div>
     </div>
 
-    <!-- ── LOGIN FORM ───────────────────────────────────────────────────── -->
     <div id="panel-login" class="hidden">
       <div class="alert alert-error hidden" id="login-error"></div>
-      <form id="login-form" onsubmit="handleLogin(event)">
-        <div class="form-group">
-          <label for="login-company-id">Company ID</label>
-          <input type="text" id="login-company-id" placeholder="e.g. ORG-123456"
-                 autocomplete="off" required />
-        </div>
-        <button type="submit" class="btn btn-primary" id="login-btn">
-          <span id="login-btn-text">Login</span>
-        </button>
+
+      <form id="form-volunteer-login" onsubmit="handleLogin(event, 'volunteer')">
+        <div class="form-group"><label for="login-vol-id">Volunteer ID</label><input type="text" id="login-vol-id" placeholder="VOL-XXXXXX" required /></div>
+        <div class="form-group"><label for="login-vol-password">Password</label><input type="password" id="login-vol-password" placeholder="Your password" required /></div>
+        <button type="submit" class="btn btn-primary" id="vol-login-btn"><span>Login as Volunteer</span></button>
       </form>
-      <p style="text-align:center;margin-top:16px;font-size:.85rem;color:var(--text-muted);">
-        Don't have an account? <a href="#" onclick="showTab('signup')" style="color:var(--primary);font-weight:600;">Sign up here</a>
-      </p>
+
+      <form id="form-manager-login" class="hidden" onsubmit="handleLogin(event, 'manager')">
+        <div class="form-group"><label for="login-mgr-id">Manager ID</label><input type="text" id="login-mgr-id" placeholder="MGR-XXXXXX" required /></div>
+        <div class="form-group"><label for="login-mgr-password">Password</label><input type="password" id="login-mgr-password" placeholder="Your password (from signup)" required /></div>
+        <button type="submit" class="btn btn-primary" id="mgr-login-btn"><span>Login as Manager</span></button>
+      </form>
+
+      <form id="form-org-login" class="hidden" onsubmit="handleLogin(event, 'organization')">
+        <div class="form-group"><label for="login-org-id">Organisation ID</label><input type="text" id="login-org-id" placeholder="ORG-XXXXXX" required /></div>
+        <div class="form-group"><label for="login-org-code">Organisation Code</label><input type="text" id="login-org-code" placeholder="10-digit code" required /></div>
+        <button type="submit" class="btn btn-primary" id="org-login-btn"><span>Login as Organisation</span></button>
+      </form>
     </div>
   </div>
 
   <script>
-    // ── Redirect if already logged in ────────────────────────────────────────
-    if (localStorage.getItem('vo_token') && localStorage.getItem('vo_companyId')) {
-      window.location.replace('/dashboard.html');
+    let currentRole = 'volunteer';
+
+    function selectRole(role) {
+      currentRole = role;
+      document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+      updateForms();
     }
 
-    // ── Tab switching ─────────────────────────────────────────────────────────
+    function updateForms() {
+      ['volunteer', 'manager', 'organization'].forEach(r => {
+        const signupForm = document.getElementById(`form-${r}-signup`);
+        const loginForm = document.getElementById(`form-${r}-login`);
+        if (signupForm) signupForm.classList.toggle('hidden', r !== currentRole);
+        if (loginForm) loginForm.classList.toggle('hidden', r !== currentRole);
+      });
+    }
+
     function showTab(tab) {
       document.getElementById('panel-signup').classList.toggle('hidden', tab !== 'signup');
       document.getElementById('panel-login').classList.toggle('hidden', tab !== 'login');
       document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
       document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('signup-success').classList.add('hidden');
+      document.getElementById('signup-form-wrap').classList.remove('hidden');
     }
 
-    // ── Signup ────────────────────────────────────────────────────────────────
-    async function handleSignup(e) {
-      e.preventDefault();
-      const email   = document.getElementById('signup-email').value.trim();
-      const pocName = document.getElementById('signup-poc').value.trim();
-      const errEl   = document.getElementById('signup-error');
-      const btn     = document.getElementById('signup-btn');
-      const btnTxt  = document.getElementById('signup-btn-text');
+    function getPortalUrl(role) {
+      if (role === 'volunteer') return '/volunteer.html';
+      if (role === 'manager') return '/manager.html';
+      return '/org-dashboard.html';
+    }
 
+    function handleSignup(e, role) {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      const btnSpan = btn.querySelector('span');
+      const errEl = document.getElementById('signup-error');
       errEl.classList.add('hidden');
       btn.disabled = true;
-      btnTxt.textContent = 'Creating…';
+      btnSpan.textContent = 'Please wait…';
 
-      try {
-        const res  = await fetch('/api/org/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, pocName })
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          errEl.textContent = data.error || 'Signup failed.';
-          errEl.classList.remove('hidden');
-          return;
-        }
-
-        // Store session
-        localStorage.setItem('vo_token',     data.token);
-        localStorage.setItem('vo_companyId', data.companyId);
-        localStorage.setItem('vo_pocName',   data.pocName);
-
-        // Show success with company ID
-        document.getElementById('signup-company-id').textContent = data.companyId;
-        document.getElementById('signup-success-msg').textContent =
-          `Welcome, ${data.pocName}! Your organisation has been created.`;
-        document.getElementById('signup-form-wrap').classList.add('hidden');
-        document.getElementById('signup-success').classList.remove('hidden');
-
-      } catch (err) {
-        errEl.textContent = 'Network error. Please try again.';
-        errEl.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btnTxt.textContent = 'Create Organisation';
+      let body = {};
+      if (role === 'volunteer') {
+        body = { name: document.getElementById('vol-name').value.trim(), email: document.getElementById('vol-email').value.trim(), age: document.getElementById('vol-age').value, gender: document.getElementById('vol-gender').value, password: document.getElementById('vol-password').value };
+      } else if (role === 'manager') {
+        body = { name: document.getElementById('mgr-name').value.trim(), email: document.getElementById('mgr-email').value.trim(), org_id: document.getElementById('mgr-org-id').value.trim().toUpperCase() };
+      } else {
+        body = { name: document.getElementById('org-name').value.trim(), email: document.getElementById('org-email').value.trim(), location: document.getElementById('org-location').value.trim() };
       }
+
+      const endpoint = role === 'volunteer' ? '/api/volunteer/signup' : role === 'manager' ? '/api/manager/signup' : '/api/organization/signup';
+
+      fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { errEl.textContent = data.error; errEl.classList.remove('hidden'); return; }
+          localStorage.setItem('vo_token', data.token);
+          localStorage.setItem('vo_role', role);
+          localStorage.setItem('vo_name', data.name);
+
+          if (role === 'volunteer') {
+            localStorage.setItem('vo_vol_id', data.vol_id);
+            document.getElementById('signup-id-display').textContent = data.vol_id;
+            document.getElementById('success-label').textContent = 'Your Volunteer ID';
+            document.getElementById('success-note').textContent = 'Use this ID and your password to log in.';
+          } else if (role === 'manager') {
+            localStorage.setItem('vo_mgr_id', data.mgr_id);
+            document.getElementById('signup-id-display').textContent = data.mgr_id;
+            document.getElementById('success-label').textContent = 'Your Manager ID';
+            document.getElementById('success-note').textContent = `Your password is: ${data.password}. Save this!`;
+          } else {
+            localStorage.setItem('vo_org_id', data.org_id);
+            localStorage.setItem('vo_org_code', data.org_code);
+            document.getElementById('signup-id-display').textContent = data.org_id;
+            document.getElementById('success-label').textContent = 'Your Organisation ID';
+            document.getElementById('success-note').textContent = `Org Code: ${data.org_code}. Use both to log in.`;
+          }
+
+          document.getElementById('signup-success-msg').textContent = `Welcome, ${data.name}!`;
+          document.getElementById('signup-form-wrap').classList.add('hidden');
+          document.getElementById('signup-success').classList.remove('hidden');
+        })
+        .catch(() => { errEl.textContent = 'Network error. Please try again.'; errEl.classList.remove('hidden'); })
+        .finally(() => { btn.disabled = false; btnSpan.textContent = e.target.querySelector('button[type="submit"]').getAttribute('data-text') || 'Submit'; });
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
-    async function handleLogin(e) {
+    function handleLogin(e, role) {
       e.preventDefault();
-      const companyId = document.getElementById('login-company-id').value.trim();
-      const errEl     = document.getElementById('login-error');
-      const btn       = document.getElementById('login-btn');
-      const btnTxt    = document.getElementById('login-btn-text');
-
+      const btn = e.target.querySelector('button[type="submit"]');
+      const btnSpan = btn.querySelector('span');
+      const errEl = document.getElementById('login-error');
       errEl.classList.add('hidden');
       btn.disabled = true;
-      btnTxt.textContent = 'Logging in…';
+      btnSpan.textContent = 'Logging in…';
 
-      try {
-        const res  = await fetch('/api/org/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId })
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          errEl.textContent = data.error || 'Login failed.';
-          errEl.classList.remove('hidden');
-          return;
-        }
-
-        localStorage.setItem('vo_token',     data.token);
-        localStorage.setItem('vo_companyId', data.companyId);
-        localStorage.setItem('vo_pocName',   data.pocName);
-
-        window.location.replace('/dashboard.html');
-
-      } catch (err) {
-        errEl.textContent = 'Network error. Please try again.';
-        errEl.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btnTxt.textContent = 'Login';
+      let body = {};
+      if (role === 'volunteer') {
+        body = { vol_id: document.getElementById('login-vol-id').value.trim().toUpperCase(), password: document.getElementById('login-vol-password').value };
+      } else if (role === 'manager') {
+        body = { mgr_id: document.getElementById('login-mgr-id').value.trim().toUpperCase(), password: document.getElementById('login-mgr-password').value };
+      } else {
+        body = { org_id: document.getElementById('login-org-id').value.trim().toUpperCase(), org_code: document.getElementById('login-org-code').value.trim() };
       }
+
+      const endpoint = role === 'volunteer' ? '/api/volunteer/login' : role === 'manager' ? '/api/manager/login' : '/api/organization/login';
+
+      fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { errEl.textContent = data.error; errEl.classList.remove('hidden'); return; }
+          localStorage.setItem('vo_token', data.token);
+          localStorage.setItem('vo_role', role);
+          localStorage.setItem('vo_name', data.name);
+          if (role === 'volunteer') localStorage.setItem('vo_vol_id', data.vol_id);
+          else if (role === 'manager') localStorage.setItem('vo_mgr_id', data.mgr_id);
+          else { localStorage.setItem('vo_org_id', data.org_id); }
+          window.location.href = getPortalUrl(role);
+        })
+        .catch(() => { errEl.textContent = 'Network error. Please try again.'; errEl.classList.remove('hidden'); })
+        .finally(() => { btn.disabled = false; btnSpan.textContent = 'Login'; });
     }
 
-    function goToDashboard() {
-      window.location.replace('/dashboard.html');
+    function goToPortal() {
+      const role = localStorage.getItem('vo_role');
+      window.location.href = getPortalUrl(role);
     }
   </script>
 </body>

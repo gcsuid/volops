@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VolOps – Join Drive</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-root">
+
+  <div class="auth-card join-card">
+    <div class="auth-logo">
+      <h1>VolOps</h1>
+      <p>Join Volunteer Drive</p>
+    </div>
+
+    <div id="loading-section">
+      <div class="spinner"></div>
+      <p style="color:var(--text-muted);margin-top:12px;">Verifying drive...</p>
+    </div>
+
+    <div id="drive-section" class="hidden">
+      <div class="drive-preview-box">
+        <h3 id="drive-name-display">—</h3>
+        <p id="drive-location-display" style="color:var(--text-muted);margin-top:4px;">—</p>
+      </div>
+
+      <div class="join-info">
+        <p>You are about to register for this drive as:</p>
+      </div>
+
+      <div class="vol-profile-box">
+        <p><strong id="vol-name-display">—</strong></p>
+        <p id="vol-id-display" style="color:var(--text-muted);font-size:.85rem;">—</p>
+      </div>
+
+      <div id="join-error" class="alert alert-error hidden"></div>
+      <button class="btn btn-success" id="confirm-btn" onclick="confirmJoin()">Confirm Registration</button>
+    </div>
+
+    <div id="success-section" class="hidden">
+      <div class="success-icon-large">&#x2713;</div>
+      <h3 style="margin-top:16px;">Registration Successful!</h3>
+      <p style="color:var(--text-muted);margin-top:8px;">You are now registered for this drive.</p>
+      <a href="/volunteer.html" class="btn btn-primary" style="margin-top:24px;display:inline-flex;text-decoration:none;">Go to My Drives</a>
+    </div>
+
+    <div id="login-section" class="hidden">
+      <div class="alert alert-info">
+        <p>Please log in as a volunteer first to register for this drive.</p>
+      </div>
+      <a href="/" class="btn btn-primary" style="display:inline-flex;text-decoration:none;justify-content:center;">Go to Login</a>
+    </div>
+
+    <div id="error-section" class="hidden">
+      <div class="alert alert-error" id="error-message">Invalid or expired QR code.</div>
+      <a href="/" class="btn btn-outline" style="display:inline-flex;text-decoration:none;justify-content:center;">Go to Home</a>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const driveId = urlParams.get('drive');
+    const secret = urlParams.get('secret');
+
+    const token = localStorage.getItem('vo_token');
+    const role = localStorage.getItem('vo_role');
+    const volId = localStorage.getItem('vo_vol_id');
+    const name = localStorage.getItem('vo_name');
+
+    if (!driveId || !secret) {
+      showError('Missing drive information. Please scan a valid QR code.');
+    } else if (token && role === 'volunteer') {
+      document.getElementById('vol-name-display').textContent = name;
+      document.getElementById('vol-id-display').textContent = volId;
+      verifyAndShowDrive();
+    } else {
+      document.getElementById('loading-section').classList.add('hidden');
+      document.getElementById('login-section').classList.remove('hidden');
+    }
+
+    async function verifyAndShowDrive() {
+      try {
+        const res = await fetch(`/api/drives/${driveId}/join?secret=${encodeURIComponent(secret)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Invalid or expired QR code.');
+          return;
+        }
+
+        document.getElementById('loading-section').classList.add('hidden');
+        document.getElementById('drive-section').classList.remove('hidden');
+        document.getElementById('drive-name-display').textContent = data.name;
+        document.getElementById('drive-location-display').textContent = data.location;
+      } catch (err) {
+        showError('Failed to verify drive. Please try again.');
+      }
+    }
+
+    async function confirmJoin() {
+      const btn = document.getElementById('confirm-btn');
+      const errEl = document.getElementById('join-error');
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+
+      try {
+        const res = await fetch(`/api/drives/${driveId}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret, vol_id: volId })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errEl.textContent = data.error || 'Registration failed.';
+          errEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Confirm Registration';
+          return;
+        }
+
+        document.getElementById('drive-section').classList.add('hidden');
+        document.getElementById('success-section').classList.remove('hidden');
+      } catch (err) {
+        errEl.textContent = 'Registration failed. Please try again.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Confirm Registration';
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('loading-section').classList.add('hidden');
+      document.getElementById('error-section').classList.remove('hidden');
+      document.getElementById('error-message').textContent = msg;
+    }
+  </script>
+</body>
+</html>
