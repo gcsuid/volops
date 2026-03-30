@@ -99,9 +99,11 @@
     }
 
     function updateForms() {
+      const roleMap = { 'volunteer': 'volunteer', 'manager': 'manager', 'organization': 'org' };
       ['volunteer', 'manager', 'organization'].forEach(r => {
-        const signupForm = document.getElementById(`form-${r}-signup`);
-        const loginForm = document.getElementById(`form-${r}-login`);
+        const idSuffix = roleMap[r];
+        const signupForm = document.getElementById(`form-${idSuffix}-signup`);
+        const loginForm = document.getElementById(`form-${idSuffix}-login`);
         if (signupForm) signupForm.classList.toggle('hidden', r !== currentRole);
         if (loginForm) loginForm.classList.toggle('hidden', r !== currentRole);
       });
@@ -141,6 +143,7 @@
       }
 
       const endpoint = role === 'volunteer' ? '/api/volunteer/signup' : role === 'manager' ? '/api/manager/signup' : '/api/organization/signup';
+      const roleForStorage = role === 'org' ? 'organization' : role;
 
       fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(r => r.json())
