@@ -1,79 +1,125 @@
-# Volunteer Management Website (VolOps)
+# VolOps - Volunteer Operations Platform
 
-## Run
-1. Open terminal in `C:\Users\KIIT\Desktop\personal_project\volops`
-2. Start server:
-   ```powershell
-   node server.js
-   ```
-3. Open `http://localhost:3000`
+A platform for volunteer-based organisations to manage drives and volunteers efficiently.
 
-## Role Portals
-- Volunteer: `/volunteer.html`
-- Site Manager: `/sitemanager.html`
-- Organization: `/organization.html`
-- Organization dashboard/reports: use `/organization.html` (Supabase-only)
+## Quick Start
 
-## New Onboarding Flow
+### Prerequisites
+- Node.js 18+
+- MongoDB (optional - falls back to local JSON store)
+
+### Installation
+
+```bash
+# Install backend dependencies
+npm install
+
+# Install frontend dependencies
+cd client && npm install && cd ..
+```
+
+### Running
+
+```bash
+# Start backend (port 3000)
+npm start
+
+# Start frontend (port 5173) - in separate terminal
+cd client && npm run dev
+```
+
+### Environment Variables
+
+Create `.env` from `.env.example`:
+
+```env
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/volops
+BASE_URL=http://localhost:3000
+```
+
+---
+
+## Architecture
+
+```
+volops/
+├── server.js              # Express entry point
+├── config/               # DB & JSON store config
+├── models/               # Mongoose schemas
+├── routes/               # API endpoints
+├── middleware/           # Auth middleware
+├── utils/                # Helpers & generators
+├── public/               # Dashboard pages (HTML)
+└── client/               # React frontend (Vite)
+    └── src/
+        ├── components/   # UI components
+        ├── api/          # API client
+        └── App.tsx       # Auth pages
+```
+
+---
+
+## User Roles
+
+| Role | Signup | Login | Dashboard |
+|------|--------|-------|----------|
+| **Volunteer** | Name, Email, Age, Gender, Password | Volunteer ID + Password | View registered drives |
+| **Site Manager** | Name, Email, Organisation ID | Manager ID + Password | Create/manage drives, QR codes |
+| **Organisation** | Name, Email, Location, Password | Org ID + Email | View all drives, download CSV |
+
+---
+
+## API Endpoints
 
 ### Volunteer
-- If registered: login with `email + password`
-- If not registered: sign up with `name, age, gender, email, password`
-- Saved profile auto-fills for check-in on future logins
-
-### Organization
-- If registered: login with `companyId + password`
-- If not registered: register with `company name, location, contact email, password`
-- On registration, system returns:
-  - `companyId` (for company identity)
-  - `organization code` (for drive-day linkage by site manager + volunteers)
+- `POST /api/volunteer/signup` - Create volunteer account
+- `POST /api/volunteer/login` - Login with ID + password
+- `GET /api/volunteer/drives` - Get registered drives
 
 ### Site Manager
-- If registered: login with `company email + uniqueManagerId`
-- If not registered: sign up with `email, name, companyId`
-- On signup, system returns `uniqueManagerId` for future logins
+- `POST /api/manager/signup` - Register with Org ID
+- `POST /api/manager/login` - Login with ID + password
+- `GET /api/manager/drives` - List manager's drives
+- `POST /api/manager/drives` - Create new drive (draft)
+- `POST /api/manager/drives/:id/start` - Start drive, generate QR
+- `POST /api/manager/drives/:id/end` - End drive
 
-## Role Guarding
-- Each role page has page-load redirect guard.
-- If wrong role session exists, user is redirected to the correct role page.
-- Protected APIs return `401` for invalid/missing role session token.
+### Organisation
+- `POST /api/organization/signup` - Register organisation
+- `POST /api/organization/login` - Login with Org ID + Email
+- `GET /api/org/drives` - List all drives
+- `GET /api/org/drives/:id/attendees` - Get attendees
+- `GET /api/org/drives/:id/download` - Download CSV
 
-## Demo Credentials
+### Drive (Public)
+- `GET /api/drives/:id` - Get drive info
+- `GET /api/drives/:id/join?secret=` - Verify QR code
+- `POST /api/drives/:id/register` - Register volunteer
 
-### How to load demo data
-After running `supabase/schema.sql` in the Supabase SQL Editor, run
-`supabase/seed.sql` in the same editor. It creates the accounts below and
-pre-confirms them so you can log in immediately without any email verification.
+---
 
-### Volunteer (demo - ready to use)
-| Field    | Value                       |
-|----------|-----------------------------|
-| Email    | `demo.volunteer@volops.dev` |
-| Password | `Demo@Volops1`              |
-| Name     | `Demo Volunteer`            |
-| Vol ID   | `VOL-DEMO-001`              |
+## Drive Workflow
 
-Login page: `/volunteer.html`
+1. **Organisation** registers and gets an Org ID
+2. **Site Manager** registers using Org ID, gets Manager ID
+3. **Manager** creates a drive (draft status)
+4. **Manager** starts the drive → QR code generated
+5. **Volunteer** signs up, scans QR → registered for drive
+6. **Manager** ends drive when done
+7. **Organisation** views all drives and downloads attendee data
 
-### Organization (registered)
-- Company ID: `CMP-1001`
-- Contact Email: `demo.org@volops.dev`
-- Password: `demo123`
-- Organization Code: `5674606646`
-- Company Name: `Community Care Network`
+---
 
-### Site Manager (registered)
-- Company Email: `demo.manager@volops.dev`
-- Unique Manager ID: `MGR-1001`
-- Name: `Demo Manager`
+## Data Storage
 
-## Drive + Reflection Behavior
-- Site manager creates drive with org code + location + start/end time.
-- Duplicate overlap blocked for same organization + same area + overlapping time.
-- Volunteer checks in via drive token + org code.
-- Volunteer rows appear in organization day sheet for that date.
+- **With MongoDB**: Uses Mongoose models, set `MONGODB_URI` in `.env`
+- **Without MongoDB**: Falls back to `data/db.json` (local JSON store)
 
-## Notes
-- Supabase-only: operational data is stored in Supabase tables (see `supabase/schema.sql`).
-- Camera and geolocation permissions are required for full volunteer check-in flow.
-- QR scan/render uses CDN libraries.
+---
+
+## Tech Stack
+
+- **Backend**: Express.js, Mongoose, JSON Store fallback
+- **Frontend**: React, TypeScript, Tailwind CSS, Vite
+- **Icons**: Lucide React
